@@ -1,0 +1,676 @@
+<!doctype html>
+<!--
+  Bu dosya, VideoKit C2PA doğrulayıcı ve oluşturucu uygulamasının kullanıcı
+  arayüzünü (UI) içerir. Tüm iş mantığı, `videokit-core.js` modülünden
+  alınarak kullanılır.
+-->
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect rx='6' width='32' height='32' fill='#111827'/><text x='6' y='22' font-family='Arial' font-size='16' fill='white'>VK</text></svg>">
+  <meta property="og:title" content="VideoKit • C2PA Doğrulayıcı & Oluşturucu">
+  <title>VideoKit • C2PA Doğrulayıcı & Oluşturucu</title>
+  <style>
+    :root{--bg:#fafafa;--card:#fff;--bd:#ebebef;--muted:#6b7280;--radius:16px;--shadow:0 8px 24px rgba(0,0,0,.06);--sp2:12px;--sp3:16px;--sp4:24px;--sp5:32px;--sp6:40px}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font:16px/1.56 system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#0f172a}
+    .wrap{max-width:1120px;margin:0 auto;padding:0 var(--sp3) var(--sp6)}
+    header{display:flex;gap:12px;align-items:center;padding:var(--sp5) 0}
+    .logo{width:36px;height:36px;border-radius:10px;background:#111827;display:grid;place-items:center;color:#fff;font-weight:800}
+    h1{font-size:28px;margin:0}
+    .card{background:var(--card);border:1px solid var(--bd);border-radius:var(--radius);padding:var(--sp5);margin:var(--sp4) 0;box-shadow:var(--shadow)}
+    .row{display:flex;flex-wrap:wrap;gap:var(--sp4);align-items:center}
+    .row>*{flex:1 1 280px}
+    label{display:block; margin-bottom: 4px; font-weight: 500;}
+    input[type="file"], input[type="text"], select {width:100%; padding: 8px 12px; border: 1px solid var(--bd); border-radius: 8px; font-family: inherit; font-size: 15px;}
+    input:disabled { background-color: #f1f5f9; cursor: not-allowed; }
+    button{padding:12px 16px;border-radius:12px;border:1px solid #111827;background:#111827;color:#fff;cursor:pointer;font-weight:600;transition:transform .06s ease,opacity .2s ease}
+    button:active{transform:translateY(1px)}
+    button:disabled{background:#e2e8f0;border-color:#e2e8f0;color:#94a3b8;cursor:not-allowed;}
+    .btn-ghost{background:#fff;color:#111827;border:1px solid #cfcfd6}
+    .muted{color:var(--muted)}
+    .badge{display:inline-block;padding:6px 12px;border-radius:999px;font-weight:700;letter-spacing:.02em;border:1px solid transparent}
+    .green{background:#eafaf0;color:#0a5d14;border-color:#b8e3c3}
+    .yellow{background:#fff6e6;color:#6a5200;border-color:#f1d29a}
+    .red{background:#ffefef;color:#7f1111;border-color:#efb0b0}
+    .badge.muted{background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--sp3)}
+    .item{border:1px solid var(--bd);border-radius:14px;padding:14px;background:#fff}
+    .item h4{margin:0 0 6px 0;font-size:16px}
+    .kvs{font-size:13px;color:#111;margin:8px 0 0}
+    .kvs div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed #eee;padding:6px 0}
+    .kvs b{color:#334155}
+    .code-block{background:#f6f8fa;border:1px solid #e5e7eb;border-radius:8px;padding:12px;font-family:monospace;white-space:pre-wrap;word-break:break-all;margin-top:12px;}
+    .sub-section{border-top:1px solid #eee;padding-top:var(--sp4);margin-top:var(--sp4);}
+    textarea.code-block{width:100%;min-height:120px;resize:vertical;}
+    select.code-block{height:auto;line-height:1.5;}
+    .trust-item{display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--bd);border-radius:10px;margin-bottom:10px;gap:16px;}
+    .trust-item .info{flex-grow:1;font-size:14px;word-break:break-word;}
+    .trust-item .info strong{color:#111827;}
+    .trust-item .info pre{font-size:12px;margin:4px 0 0;color:var(--muted);white-space:pre-wrap;word-break:break-all;}
+    .codes-table{width:100%;border-collapse:collapse;font-size:13px;}
+    .codes-table th, .codes-table td{border:1px solid var(--bd);padding:8px;text-align:left;vertical-align:top;word-break:break-word;}
+    .codes-table th{background-color:#f6f8fa;font-weight:600;}
+    .codes-table code{font-family:monospace;background:#eef;padding:2px 4px;border-radius:4px;word-break:break-all;}
+    .separator { text-align: center; margin: var(--sp4) 0; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+    .separator::before, .separator::after { content: ''; flex: 1; border-bottom: 1px solid var(--bd); }
+    @media print{
+      body{background:#fff}
+      .card, .grid, .item{box-shadow:none;border-color:#ddd}
+      header, .row{page-break-inside:avoid}
+    }
+  </style>
+  
+  <!-- C2PA SDK'sını global olarak yüklüyoruz -->
+  <script src="https://cdn.jsdelivr.net/npm/c2pa@0.13.0/dist/c2pa.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">VK</div>
+      <div>
+        <h1>VideoKit • Content Credentials (C2PA) Aracı</h1>
+        <div class="muted">Gömülü, <b>sidecar</b> (.c2pa) veya <b>remote URL</b> manifest — üçü de desteklenir.</div>
+      </div>
+    </header>
+
+    <div class="card">
+      <h2 style="margin-top:0">1. Doğrulama (Validator)</h2>
+      <div id="local-files-section">
+        <div class="row">
+          <label><b>Video(lar) (MP4/MOV)</b><br>
+            <input id="files" type="file" accept="video/mp4,video/quicktime" multiple>
+            <small class="muted">İpucu: Birden fazla video seçebilirsiniz.</small>
+          </label>
+          <label><b>Opsiyonel sidecar(lar) (.c2pa)</b><br>
+            <input id="sidecars" type="file" accept=".c2pa" multiple>
+            <small class="muted">Aynı isimli dosyalar otomatik eşleştirilir (ör. <i>foo.mp4</i> ↔ <i>foo.c2pa</i>).</small>
+          </label>
+        </div>
+      </div>
+      <div class="separator">VEYA</div>
+      <div id="remote-url-section">
+        <label><b>Remote URL ile Doğrula</b><br>
+          <input id="remoteUrl" type="text" placeholder="https://example.com/video_with_c2pa.mp4">
+          <small class="muted">Manifest'in gömülü olduğu video dosyasının URL'ini girin.</small>
+        </label>
+      </div>
+      <div class="row" style="margin-top:var(--sp3)">
+        <button id="btnVerify">Doğrula</button>
+        <button id="btnClear" class="btn-ghost">Temizle</button>
+        <div class="muted" id="hint">Hazır.</div>
+      </div>
+    </div>
+
+    <div class="card" id="results-card">
+      <h2 style="margin-top:0">Doğrulama Sonuçları</h2>
+      <div id="list" class="grid"></div>
+      <div id="progress-container" style="display:none;margin:12px 0">
+        <div id="progress-bar" style="height:8px;width:0%;background:#111827;border-radius:8px;transition:width .2s ease"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card" id="stamper-card">
+        <h2 style="margin-top:0;">2. C2PA Manifest Oluşturucu (Stamper)</h2>
+        <p class="muted">Bu bölüm, bir video dosyası için C2PA manifest'i oluşturur, tarayıcıda depolanan anahtarınızla imzalar ve bir <code>.c2pa</code> yan dosyası olarak indirmenizi sağlar.</p>
+        
+        <div class="sub-section">
+            <div class="row">
+                <div>
+                    <label for="stamperAsset">Kaynak Video (MP4/MOV)</label>
+                    <input id="stamperAsset" type="file" accept="video/mp4,video/quicktime">
+                </div>
+                <div>
+                    <label for="stamperAuthor">Yazar (Creator)</label>
+                    <input id="stamperAuthor" type="text" placeholder="Örn: VideoKit Departmanı">
+                </div>
+            </div>
+            <div class="row" style="margin-top:var(--sp3)">
+                 <div>
+                    <label for="stamperAction">Eylem (Action)</label>
+                    <select id="stamperAction">
+                        <option value="c2pa.created">Oluşturuldu (Created)</option>
+                        <option value="c2pa.edited">Düzenlendi (Edited)</option>
+                        <option value="c2pa.published">Yayınlandı (Published)</option>
+                        <option value="c2pa.transcoded">Dönüştürüldü (Transcoded)</option>
+                        <option value="c2pa.copied">Kopyalandı (Copied)</option>
+                        <option value="c2pa.imported">İçe Aktarıldı (Imported)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="stamperAgent">Yazılım Bilgisi (Software Agent)</label>
+                    <input id="stamperAgent" type="text" value="VideoKit C2PA Stamper v2.0" readonly>
+                </div>
+            </div>
+             <div class="muted" style="margin-top:var(--sp4); border-top: 1px solid var(--bd); padding-top: var(--sp3);">
+                <b>İmzalama Anahtarı:</b> Bu işlem, aşağıdaki "Anahtar Altyapısı" bölümünde oluşturulan ve tarayıcıda saklanan güvenli anahtarı kullanacaktır. Eğer anahtarınız yoksa, lütfen önce bir anahtar oluşturun.
+            </div>
+            <div class="row" style="margin-top:var(--sp4)">
+                <button id="stamperGenerateBtn">Manifest Oluştur ve İndir (.c2pa)</button>
+            </div>
+            <div id="stamperStatus" class="muted" style="margin-top:12px;">Hazır.</div>
+        </div>
+    </div>
+
+    <div class="card" id="klv-card">
+      <h2 style="margin-top:0">Yardımcı Araçlar</h2>
+      <div class="sub-section" style="margin-top:0; padding-top:0; border-top:none;">
+        <h3>KLV / JSON Dönüştürücü (MISB ST 0601 Uyumlu)</h3>
+        <div class="row">
+          <label style="flex:2 1 60%"><b>Giriş Dosyası</b><br>
+            <input id="klvInput" type="file" accept=".klv,application/json">
+            <small class="muted">KLV (.klv) veya JSON (.json) dosyası seçin</small>
+          </label>
+          <label style="flex:1 1 30%"><b>ST 0601 Versiyonu</b><br>
+            <select id="klvVersionSelect" class="code-block" style="width:100%; padding: 8px; margin-top:0;">
+              <option value="8">ST 0601.8 (Varsayılan)</option>
+              <option value="12">ST 0601.12</option>
+              <option value="16">ST 0601.16</option>
+            </select>
+          </label>
+        </div>
+        <div class="row" style="margin-top:var(--sp3)">
+          <button id="klvConvert">Dönüştür ve Doğrula</button>
+          <button id="klvDownload" class="btn-ghost" disabled>İndir</button>
+        </div>
+        <div id="klvStatus" class="muted" style="margin-top:12px;white-space:pre-wrap;">Hazır.</div>
+        <pre id="klvOutput" class="code-block" style="display:none"></pre>
+      </div>
+
+      <div class="sub-section">
+        <h3>BMFF Parçalı Hash Oluşturucu</h3>
+        <p class="muted">Bir MP4/MOV dosyasının C2PA standartlarına uygun parçalı hash'ini oluşturur.</p>
+        <label><b>Video Dosyası (MP4/MOV)</b><br>
+          <input id="bmffFileInput" type="file" accept="video/mp4,video/quicktime">
+        </label>
+        <div class="row" style="margin-top:var(--sp3)">
+          <button id="bmffGenerateBtn">Hash Oluştur</button>
+          <button id="bmffCopyBtn" class="btn-ghost" disabled>Kopyala</button>
+        </div>
+        <div id="bmffStatus" class="muted" style="margin-top:12px;">Hazır.</div>
+        <pre id="bmffOutput" class="code-block" style="display:none;"></pre>
+      </div>
+
+      <div class="sub-section">
+        <h3>HLS/DASH Akış Bütünlüğü Doğrulama</h3>
+        <p class="muted">Bir HLS (.m3u8) veya DASH (.mpd) manifest URL'ini işler, tüm segmentlerin BMFF hash'lerini karşılaştırarak akışın bütünlüğünü kontrol eder.</p>
+        <label><b>Manifest URL (.m3u8 veya .mpd)</b><br>
+          <input id="streamUrlInput" type="text" placeholder="https://example.com/stream/index.m3u8">
+        </label>
+        <div class="row" style="margin-top:var(--sp3)">
+          <button id="streamVerifyBtn">Akışı Doğrula</button>
+        </div>
+        <div id="streamStatus" class="muted" style="margin-top:12px;">Hazır.</div>
+        <pre id="streamOutput" class="code-block" style="display:none;"></pre>
+      </div>
+    </div>
+
+    <div class="card" id="embedding-card">
+      <h2 style="margin-top:0">Harici Araç Entegrasyonları (Komut Satırı)</h2>
+      <div class="sub-section" style="margin-top:0; padding-top:0; border-top:none;">
+        <h3>GStreamer ile KLV Ekleme</h3>
+        <p class="muted">KLV akışını video ile senkron bir şekilde MPEG-TS dosyasına gömer.</p>
+        <div class="row">
+            <label><b>Video Dosyası (MP4)</b><br><input id="gstreamerVideoInput" type="file" accept="video/mp4"></label>
+            <label><b>KLV Dosyası (.klv)</b><br><input id="gstreamerKlvInput" type="file" accept=".klv"></label>
+        </div>
+        <div class="row" style="margin-top:var(--sp3)">
+          <button id="gstreamerGenerateBtn">GStreamer Komutu Oluştur</button>
+          <button id="gstreamerCopyBtn" class="btn-ghost" disabled>Komutu Kopyala</button>
+        </div>
+        <pre id="gstreamerCommandOutput" class="code-block" style="display:none;"></pre>
+      </div>
+
+      <div class="sub-section">
+        <h3>FFmpeg/FFprobe ile KLV İşleme</h3>
+        <p class="muted">Mevcut KLV'li videoları doğrulamak, ayıklamak veya temizlemek için komutlar üretir.</p>
+        <label><b>Video Dosyası (MPEG-TS)</b><br><input id="ffmpegTsInput" type="file" accept=".ts,video/mp2t"></label>
+        <div class="row" style="margin-top:var(--sp3); align-items:flex-start;">
+            <div>
+                <b>Yapılacak İşlem:</b>
+                <label style="margin-top:8px;"><input type="radio" name="ffmpegAction" value="analyze" checked> Analiz Et (FFprobe ile)</label>
+                <label><input type="radio" name="ffmpegAction" value="extract"> Ayıkla (.klv dosyası)</label>
+                <label><input type="radio" name="ffmpegAction" value="clean"> Temizle (KLV akışını kaldır)</label>
+            </div>
+            <div>
+                <button id="ffmpegGenerateBtn" style="width:100%">Komut Oluştur</button>
+                <button id="ffmpegCopyBtn" class="btn-ghost" style="width:100%; margin-top:12px;" disabled>Komutu Kopyala</button>
+            </div>
+        </div>
+        <div id="ffmpegAnalysisSection" style="display:none;">
+            <p class="muted" style="margin-top:var(--sp4)"><b>Analiz Adımları:</b><br>1. Yukarıdaki komutu kopyalayıp terminalde çalıştırın.<br>2. Ortaya çıkan tüm JSON metnini aşağıdaki kutuya yapıştırın.<br>3. Analiz et butonuna tıklayarak KLV akışının sağlığını kontrol edin.</p>
+            <textarea id="ffmpegJsonInput" class="code-block" placeholder="ffprobe JSON çıktısını buraya yapıştırın..."></textarea>
+            <button id="ffmpegAnalyzeBtn" style="margin-top:var(--sp3)">Yapıştırılan JSON'u Analiz Et</button>
+            <pre id="ffmpegAnalysisOutput" class="code-block" style="display:none;"></pre>
+        </div>
+        <pre id="ffmpegCommandOutput" class="code-block" style="display:none;"></pre>
+      </div>
+    </div>
+
+    <div class="card" id="key-card">
+      <h2 style="margin-top:0">Güvenlik Altyapısı</h2>
+       <div class="sub-section" style="margin-top:0; padding-top:0; border-top:none;">
+        <h3>Anahtar Altyapısı (Güvenli Saklama)</h3>
+        <div class="row">
+            <button id="keyGenerate">Yeni Anahtar Oluştur</button>
+            <button id="keyClear" class="btn-ghost">Anahtarı Temizle</button>
+        </div>
+        <div id="keyInfo" class="muted" style="margin-top:12px">Depolanmış anahtar yok.</div>
+      </div>
+      
+      <div class="sub-section">
+        <h3>RFC 3161 Zaman Damgası Yetkilisi (TSA)</h3>
+        <div class="row">
+          <label><b>TSA Sunucusu</b>
+            <select id="tsaServer" class="code-block" style="width:100%;padding:8px;margin-top:0">
+              <option value="http://timestamp.digicert.com">DigiCert</option>
+              <option value="https://timestamp.sectigo.com">Sectigo</option>
+              <option value="https://freetsa.org/tsr">FreeTSA</option>
+            </select>
+          </label>
+        </div>
+        <div class="row" style="margin-top:var(--sp3)">
+          <button id="tsaRequestBtn" disabled>Güvenilir Zaman Damgası İste (RFC 3161)</button>
+        </div>
+        <div id="timeInfo" class="muted" style="margin-top:12px; white-space:pre-wrap"></div>
+      </div>
+    </div>
+
+    <div class="card" id="trust-card">
+      <h2 style="margin-top:0">Güven Listesi Yönetimi (Trust Store)</h2>
+      <p class="muted">Doğrulama sırasında özel olarak güvenilecek kök sertifikaları buraya ekleyebilirsiniz. Bu sertifikalar, C2PA'in varsayılan güven listesine ek olarak kullanılır. Lütfen sertifikaları <strong>PEM formatında</strong> ekleyin.</p>
+      
+      <div class="sub-section">
+        <h3>Yeni Sertifika Ekle</h3>
+        <textarea id="pemInput" class="code-block" rows="5" placeholder="-----BEGIN CERTIFICATE-----&#10;MIIC...&#10;-----END CERTIFICATE-----"></textarea>
+        <div class="row" style="margin-top:var(--sp3)">
+          <button id="addCertBtn" disabled>Güven Listesine Ekle</button>
+        </div>
+        <div id="trustStatus" class="muted" style="margin-top:12px;"></div>
+      </div>
+      
+      <div class="sub-section">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="margin:0;">Mevcut Güvenilir Sertifikalar</h3>
+          <button id="clearTrustListBtn" class="btn-ghost">Tüm Listeyi Temizle</button>
+        </div>
+        <div id="trustListDisplay"></div>
+        <p id="trustListEmpty" class="muted" style="display:none;">Güven listesi boş.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { VideoKitCore } from './videokit-core.js';
+    
+    const $ = s => document.querySelector(s);
+    
+    // --- UI Yardımcı Fonksiyonları ---
+    const download = (blob, filename) => {
+        const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(blob), download:filename});
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    };
+
+    const copyToClipboard = (text, btn) => {
+        if (!navigator.clipboard) return;
+        navigator.clipboard.writeText(text).then(() => {
+            const originalText = btn.textContent;
+            btn.textContent = 'Kopyalandı!';
+            setTimeout(() => { btn.textContent = originalText; }, 2000);
+        });
+    };
+    
+    const fmtSize = (n) => {
+      if(n === undefined || n === null) return '—';
+      if(n<1024) return n+' B'; const k=n/1024; if(k<1024) return k.toFixed(1)+' KB'; const m=k/1024; return (m<1024 ? m.toFixed(1)+' MB' : (m/1024).toFixed(1)+' GB');
+    };
+
+    const esc = (s) => String(s??'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+
+    const setProgress = (count, total) => {
+      const pBar = $('#progress-bar');
+      if (!pBar) return;
+      $('#progress-container').style.display = (!total || total <= 0) ? 'none' : 'block';
+      pBar.style.width = Math.round((count / total) * 100) + '%';
+      pBar.style.background = (count >= total) ? '#0a5d14' : '#111827';
+    };
+
+    const c2paCodeDescriptions = {
+      'c2pa.claim.signature.validated': 'İddianın imzası kriptografik olarak doğrulandı.',
+      'c2pa.signature.validated': 'Manifest imzasının kriptografik olarak geçerli olduğu doğrulandı.',
+      'c2pa.signingCredential.validated': 'İmza sertifikası geçerlidir ve süresi dolmamıştır.',
+      'c2pa.tsa.validated': 'Zaman damgası yetkilisinin (TSA) yanıtı kriptografik olarak doğrulandı.',
+      'c2pa.asset.hash.match': 'Dosyanın içerik özeti (hash), manifestte belirtilen değerle eşleşiyor.',
+      'c2pa.trust.chain.validated': 'İmza sertifikası, güvenilir bir kök sertifikaya kadar uzanan geçerli bir zincire sahip.',
+      'c2pa.tsa.token.trusted': 'Zaman damgası, güvenilir bir zaman damgası yetkilisi tarafından verilmiştir.',
+      'c2pa.signingCredential.untrusted': 'İmza sertifikası geçerli, ancak güven listesindeki bir kök sertifikaya zincirlenmemiş.',
+      'c2pa.claim.redacted': 'Manifestteki bazı bilgiler (iddialar) gizlenmiş veya kaldırılmış.',
+      'c2pa.ingredient.hashedURI.mismatch': 'Bir bileşenin (önceki dosyanın) içerik özeti (hash) değişmiş, bu da dosyanın değiştirildiğini gösterir.',
+      'c2pa.claim.signature.invalid': 'İddianın imzası geçersiz. İddia değiştirilmiş veya bozulmuş olabilir.',
+      'c2pa.signature.invalid': 'Manifest imzası geçersiz. Manifest değiştirilmiş veya bozulmuş olabilir.',
+      'c2pa.signingCredential.expired': 'İmza atıldığı sırada imza sertifikasının süresi dolmuştu.',
+      'c2pa.asset.hash.mismatch': 'Dosyanın içerik özeti (hash), manifestte belirtilen değerle eşleşmiyor. Dosya içeriği değiştirilmiş.',
+      'c2pa.manifest.notfound': 'Dosyada geçerli bir C2PA manifesti bulunamadı.',
+      'c2pa.jumbf.notfound': 'C2PA verilerini içeren JUMBF kutusu bulunamadı.',
+      'c2pa.error': 'Genel bir işleme veya doğrulama hatası oluştu.'
+    };
+    
+    // --- C2PA Doğrulayıcı Arayüzü ---
+    
+    const clearValidator = () => {
+        $('#list').innerHTML='';
+        $('#hint').textContent='Hazır.';
+        $('#files').value=''; $('#sidecars').value=''; $('#remoteUrl').value='';
+        setProgress(0, 0);
+    };
+
+    const renderReportCard = (report) => {
+        const card = Object.assign(document.createElement('div'), { className: 'item card', _report: report });
+        const [tsBadgeClass, tsText] = VideoKitCore.utils.tsState(report.validationCodes || []);
+        
+        card.innerHTML = `
+          <h4>${esc(report.file.name)}</h4>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="badge ${report.verdict}">${report.verdict.toUpperCase()}</span>
+            <span class="badge ${tsBadgeClass}">Timestamp: ${tsText}</span>
+            ${report.summary?.sourceType ? `<span class="badge muted">${esc(report.summary.sourceType)}</span>` : ''}
+            ${report.isSidecarUsed ? `<span class="badge muted">sidecar eşleşti</span>` : ''}
+          </div>
+          <div class="muted" style="margin-top:8px">${esc(report.message)} ${report.ms ? '('+report.ms+' ms)' : ''}</div>
+          <div class="kvs">
+            <div><b>Boyut</b><span>${fmtSize(report.file.size)}</span></div>
+            <div><b>İmza veren</b><span>${esc(report.summary?.issuer || '—')}</span></div>
+            <div><b>İmza zamanı (UTC)</b><span>${esc(report.summary?.time || '—')}</span></div>
+            <div><b>Başlık</b><span>${esc(report.summary?.title || '—')}</span></div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-ghost dl">JSON</button>
+            <button class="btn-ghost pdf">PDF</button>
+            <button class="btn-ghost show">Açıklamalar</button>
+            <button class="btn-ghost csv">CSV</button>
+          </div>
+          <div class="codes" style="display:none;margin-top:8px"></div>`;
+        
+        card.querySelector('.dl').addEventListener('click', () => download(new Blob([JSON.stringify(report,null,2)], {type:'application/json'}), `${report.file.name}.videokit-report.json`));
+        card.querySelector('.pdf').addEventListener('click', () => window.openPdf ? window.openPdf(report, c2paCodeDescriptions) : alert('PDF oluşturucu yüklenemedi.'));
+        card.querySelector('.show').addEventListener('click', () => {
+          const codesDiv = card.querySelector('.codes');
+          if (codesDiv.style.display !== 'none') { codesDiv.style.display = 'none'; return; }
+          const codes = report.validationCodes || [];
+          if (report.error && codes.length === 0) codesDiv.innerHTML = `<pre class="code-block" style="margin-top:0;">Hata: ${esc(report.error)}</pre>`;
+          else if (codes.length === 0) codesDiv.innerHTML = `<div class="muted">Görüntülenecek doğrulama kodu yok.</div>`;
+          else codesDiv.innerHTML = `<table class="codes-table"><thead><tr><th>Kod</th><th>Açıklama</th></tr></thead><tbody>${codes.map(c => `<tr><td><code>${esc(c)}</code></td><td>${esc(c2paCodeDescriptions[c]||'Açıklama yok.')}</td></tr>`).join('')}</tbody></table>`;
+          codesDiv.style.display = 'block';
+        });
+        card.querySelector('.csv').addEventListener('click', () => {
+          const reports = Array.from(document.querySelectorAll('#list .item.card')).map(el => el._report).filter(Boolean);
+          const header = 'Dosya,Durum,Mesaj,İmza veren,İmza zamanı,Başlık,Süre(ms)';
+          const rows = reports.map(r => [r.file?.name,r.verdict?.toUpperCase(),r.message,r.summary?.issuer,r.summary?.time,r.summary?.title,r.ms].map(x => `"${String(x??'—').replace(/"/g,'""')}"`).join(','));
+          download(new Blob([header, ...rows].join('\n'), {type:'text/csv;charset=utf-8;'}), `${new Date().toISOString().replace(/[:.]/g,'-')}_videokit_results.csv`);
+        });
+        $('#list').appendChild(card);
+    };
+
+    $('#btnClear').addEventListener('click', clearValidator);
+    $('#remoteUrl').addEventListener('input', (e) => {
+        const hasUrl = !!e.target.value.trim();
+        $('#files').disabled = hasUrl; $('#sidecars').disabled = hasUrl;
+        if (hasUrl) { $('#files').value = ''; $('#sidecars').value = ''; }
+    });
+    $('#files').addEventListener('change', (e) => {
+        const hasFiles = e.target.files.length > 0;
+        $('#remoteUrl').disabled = hasFiles;
+        if (hasFiles) $('#remoteUrl').value = '';
+    });
+    $('#btnVerify').addEventListener('click', async () => {
+      const remoteUrl = $('#remoteUrl').value.trim();
+      const files = Array.from($('#files').files||[]);
+      if (!remoteUrl && !files.length){ $('#hint').textContent='Dosya seçin veya bir URL girin.'; return; }
+      
+      $('#hint').textContent = 'Doğrulanıyor…'; $('#list').innerHTML='';
+      const trustListPems = VideoKitCore.security.trustList.get().map(item => item.pem);
+
+      if(remoteUrl) {
+        setProgress(0, 1);
+        const report = await VideoKitCore.c2pa.verify(remoteUrl, { customTrustList: trustListPems });
+        renderReportCard(report);
+        setProgress(1, 1);
+      } else {
+        const scMap = new Map(Array.from($('#sidecars').files||[]).map(f => [VideoKitCore.utils.baseName(f.name), f]));
+        setProgress(0, files.length);
+        for (let i = 0; i < files.length; i++){
+            const sc = scMap.get(VideoKitCore.utils.baseName(files[i].name));
+            const report = await VideoKitCore.c2pa.verify(files[i], { sidecar: sc, customTrustList: trustListPems });
+            renderReportCard(report);
+            setProgress(i + 1, files.length);
+        }
+      }
+      $('#hint').textContent = 'Tamamlandı.';
+    });
+
+    // --- C2PA Stamper Arayüzü ---
+    $('#stamperGenerateBtn').addEventListener('click', async () => {
+        const statusDiv = $('#stamperStatus'), btn = $('#stamperGenerateBtn');
+        const file = $('#stamperAsset').files[0];
+        if (!file) { statusDiv.textContent = 'Lütfen bir video dosyası seçin.'; return; }
+        const author = $('#stamperAuthor').value.trim();
+        if (!author) { statusDiv.textContent = 'Lütfen yazar adını girin.'; return; }
+
+        const keyPair = await VideoKitCore.security.keyManager.load();
+        if (!keyPair) { statusDiv.textContent = '❌ İmzalama anahtarı bulunamadı. Lütfen önce bir anahtar oluşturun.'; return; }
+
+        statusDiv.textContent = 'İşleniyor...'; btn.disabled = true;
+        try {
+            const sidecarBlob = await VideoKitCore.c2pa.stamp({
+                asset: file, author: author, action: $('#stamperAction').value, agent: $('#stamperAgent').value,
+                tsaUrl: $('#tsaServer').value, keyPair: keyPair
+            });
+            download(sidecarBlob, `${VideoKitCore.utils.baseName(file.name)}.c2pa`);
+            statusDiv.textContent = '✅ Manifest başarıyla oluşturuldu ve indirildi!';
+        } catch (e) { statusDiv.textContent = `❌ Hata: ${e.message}`; } 
+        finally { btn.disabled = false; }
+    });
+
+    // --- KLV Dönüştürücü Arayüzü ---
+    $('#klvConvert').addEventListener('click', async () => {
+        const file = $('#klvInput').files[0], statusEl = $('#klvStatus'), outputEl = $('#klvOutput'), downloadBtn = $('#klvDownload');
+        outputEl.style.display = 'none'; downloadBtn.disabled = true;
+        if (!file) { statusEl.textContent = 'Lütfen bir .klv veya .json dosyası seçin.'; return; }
+        const isJson = file.name.toLowerCase().endsWith('.json');
+        try {
+            let resultObj, resultBuf, downloadName, blobType;
+            if (isJson) {
+                resultObj = JSON.parse(await file.text());
+                statusEl.textContent = "Doğrulama Sonuçları:\n" + (await VideoKitCore.klv.validateJson(resultObj)).join('\n');
+                resultBuf = VideoKitCore.klv.jsonToBuffer(resultObj, $('#klvVersionSelect').value);
+                downloadName = file.name.replace(/\.json$/i, '') + '.klv';
+                blobType = 'application/octet-stream';
+            } else {
+                resultObj = VideoKitCore.klv.bufferToJson(await file.arrayBuffer());
+                statusEl.textContent = "Doğrulama Sonuçları:\n" + (await VideoKitCore.klv.validateJson(resultObj)).join('\n');
+                const jsonStr = JSON.stringify(resultObj, (k,v) => typeof v === 'bigint' ? v.toString() : v, 2);
+                resultBuf = new TextEncoder().encode(jsonStr);
+                downloadName = file.name.replace(/\.klv$/i, '') + '.json';
+                blobType = 'application/json;charset=utf-8';
+            }
+            const blob = new Blob([resultBuf], { type: blobType });
+            downloadBtn.onclick = () => download(blob, downloadName);
+            downloadBtn.disabled = false;
+            outputEl.textContent = JSON.stringify(resultObj, (k,v) => typeof v === 'bigint' ? v.toString() : v, 2);
+            outputEl.style.display = 'block';
+        } catch(e) { statusEl.textContent = 'Hata: ' + e.message; }
+    });
+
+    // --- BMFF Hash Arayüzü ---
+    $('#bmffGenerateBtn').addEventListener('click', async () => {
+      const file = $('#bmffFileInput').files[0];
+      if (!file) { $('#bmffStatus').textContent = 'Lütfen bir video dosyası seçin.'; return; }
+      $('#bmffStatus').textContent = 'Hesaplanıyor...'; $('#bmffOutput').style.display = 'none';
+      $('#bmffCopyBtn').disabled = true; $('#bmffGenerateBtn').disabled = true;
+      try {
+        const hash = await VideoKitCore.c2pa.calculateBmffHash(file);
+        $('#bmffOutput').textContent = hash; $('#bmffOutput').style.display = 'block';
+        $('#bmffStatus').textContent = '✅ Hash başarıyla oluşturuldu.'; $('#bmffCopyBtn').disabled = false;
+      } catch (e) { $('#bmffStatus').textContent = '❌ Hata: Dosya işlenemedi.'; } 
+      finally { $('#bmffGenerateBtn').disabled = false; }
+    });
+    $('#bmffCopyBtn').addEventListener('click', () => copyToClipboard($('#bmffOutput').textContent, $('#bmffCopyBtn')));
+    
+    // --- Akış Bütünlüğü Arayüzü ---
+    $('#streamVerifyBtn').addEventListener('click', async () => {
+        const url = $('#streamUrlInput').value.trim(), statusEl = $('#streamStatus'), outputEl = $('#streamOutput'), btn = $('#streamVerifyBtn');
+        if (!url) { statusEl.textContent = 'Lütfen bir manifest URL\'i girin.'; return; }
+        btn.disabled = true; outputEl.style.display = 'none'; statusEl.textContent = 'Manifest okunuyor...';
+        try {
+            const report = await VideoKitCore.c2pa.verifyStreamIntegrity(url, (c, t) => statusEl.textContent = `Segment ${c}/${t} işleniyor...`);
+            if (report.overallStatus === 'ok') statusEl.textContent = `✅ Bütünlük doğrulandı. ${report.segmentCount} segment eşleşiyor.`;
+            else if (report.overallStatus === 'mismatch') statusEl.textContent = `❌ Bütünlük hatası! ${report.mismatchCount} segment eşleşmedi.`;
+            else statusEl.textContent = `❌ Hata oluştu: ${report.error || 'Bilinmeyen hata'}`;
+            outputEl.textContent = JSON.stringify(report, null, 2); outputEl.style.display = 'block';
+        } catch (e) { statusEl.textContent = `❌ Hata: ${e.message}`; } 
+        finally { btn.disabled = false; }
+    });
+
+    // --- Komut Üreteçleri Arayüzü ---
+    $('#gstreamerGenerateBtn').addEventListener('click', () => {
+        const videoFile = $('#gstreamerVideoInput').files[0], klvFile = $('#gstreamerKlvInput').files[0], out = $('#gstreamerCommandOutput');
+        if (!videoFile || !klvFile) out.textContent = 'Lütfen hem video hem de KLV dosyası seçin.';
+        else { out.textContent = VideoKitCore.commands.gstreamer({ videoName: videoFile.name, klvName: klvFile.name }); $('#gstreamerCopyBtn').disabled = false; }
+        out.style.display = 'block';
+    });
+    $('#gstreamerCopyBtn').addEventListener('click', () => copyToClipboard($('#gstreamerCommandOutput').textContent, $('#gstreamerCopyBtn')));
+    
+    $('#ffmpegGenerateBtn').addEventListener('click', () => {
+        const tsFile = $('#ffmpegTsInput').files[0], out = $('#ffmpegCommandOutput');
+        if (!tsFile) out.textContent = 'Lütfen bir MPEG-TS dosyası seçin.';
+        else {
+            const action = $('input[name="ffmpegAction"]:checked').value;
+            out.textContent = VideoKitCore.commands.ffmpeg({ tsName: tsFile.name, action: action });
+            $('#ffmpegCopyBtn').disabled = false;
+            $('#ffmpegAnalysisSection').style.display = (action === 'analyze') ? 'block' : 'none';
+        }
+        out.style.display = 'block';
+    });
+    $('#ffmpegCopyBtn').addEventListener('click', () => copyToClipboard($('#ffmpegCommandOutput').textContent, $('#ffmpegCopyBtn')));
+    $('#ffmpegAnalyzeBtn').addEventListener('click', () => {
+        const out = $('#ffmpegAnalysisOutput');
+        try { out.textContent = VideoKitCore.commands.analyzeFfmpegJson($('#ffmpegJsonInput').value); } 
+        catch(e) { out.textContent = "Hata: Geçersiz JSON formatı.\n\n" + e.message; }
+        out.style.display = 'block';
+    });
+
+    // --- Güvenlik ve Anahtar Yönetimi Arayüzü ---
+    const updateKeyInfo = async () => {
+        const info = await VideoKitCore.security.keyManager.getInfo();
+        $('#keyInfo').textContent = info ? `Anahtar mevcut. Parmak izi: ${info.fingerprint}` : 'Depolanmış anahtar yok.';
+    };
+    $('#keyGenerate').addEventListener('click', async () => { await VideoKitCore.security.keyManager.generateAndStore(); updateKeyInfo(); });
+    $('#keyClear').addEventListener('click', async () => { await VideoKitCore.security.keyManager.clear(); updateKeyInfo(); });
+
+    // --- TSA ve Güven Listesi Arayüzü ---
+    (async function() {
+      const loadScript = (src) => new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) return resolve();
+        const s = Object.assign(document.createElement('script'), { src, onload: resolve, onerror: () => reject(new Error(`Script yüklenemedi: ${src}`)) });
+        document.head.appendChild(s);
+      });
+
+      try {
+        $('#tsaRequestBtn').textContent = 'Kütüphaneler Yükleniyor...';
+        await loadScript("https://unpkg.com/asn1js@3.0.5/build/asn1.min.js");
+        await loadScript("https://unpkg.com/pkijs@3.0.8/build/pkijs.min.js");
+        $('#tsaRequestBtn').disabled = false; $('#tsaRequestBtn').textContent = 'Güvenilir Zaman Damgası İste (RFC 3161)';
+        $('#addCertBtn').disabled = false;
+      } catch (error) {
+        $('#tsaRequestBtn').textContent = 'Yükleme Başarısız'; $('#trustStatus').textContent = 'Kripto kütüphaneleri yüklenemedi.';
+      }
+
+      $('#tsaRequestBtn').addEventListener('click', async () => {
+        $('#timeInfo').textContent = `İstek gönderiliyor...`;
+        try {
+            const timestamp = await VideoKitCore.security.tsa.request($('#tsaServer').value);
+            $('#timeInfo').textContent = `✅ Başarılı! Güvenilir Zaman Damgası (UTC): ${timestamp.toISOString()}`;
+        } catch (e) { $('#timeInfo').textContent = `❌ Hata: ${e.message}`; }
+      });
+      
+      const renderTrustList = () => {
+        const list = VideoKitCore.security.trustList.get();
+        const display = $('#trustListDisplay'); display.innerHTML = '';
+        $('#trustListEmpty').style.display = list.length === 0 ? 'block' : 'none';
+        list.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'trust-item';
+            el.innerHTML = `<div class="info"><strong>${esc(item.subject)}</strong><pre>Parmak İzi (SHA-1): ${esc(item.fingerprint)}</pre></div><button class="btn-ghost remove-cert-btn" data-fp="${esc(item.fingerprint)}">Kaldır</button>`;
+            display.appendChild(el);
+        });
+      };
+      
+      $('#addCertBtn').addEventListener('click', async () => {
+        const statusEl = $('#trustStatus');
+        try {
+            await VideoKitCore.security.trustList.add($('#pemInput').value.trim());
+            statusEl.textContent = '✅ Sertifika güven listesine eklendi.'; $('#pemInput').value = ''; renderTrustList();
+        } catch (e) { statusEl.textContent = `❌ Hata: ${e.message}`; }
+      });
+
+      $('#clearTrustListBtn').addEventListener('click', () => {
+        if (confirm('Güven listesindeki tüm sertifikaları silmek istediğinizden emin misiniz?')) {
+            VideoKitCore.security.trustList.clear(); renderTrustList();
+            $('#trustStatus').textContent = 'ℹ️ Güven listesi temizlendi.';
+        }
+      });
+
+      $('#trustListDisplay').addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-cert-btn')) {
+            VideoKitCore.security.trustList.remove(e.target.dataset.fp); renderTrustList();
+            $('#trustStatus').textContent = 'ℹ️ Sertifika listeden kaldırıldı.';
+        }
+      });
+
+      // İlk yükleme
+      updateKeyInfo();
+      renderTrustList();
+    })();
+  </script>
+
+  <script>
+    // PDF Oluşturma gibi sadece arayüze özgü eklentiler.
+    // Bu bölümdeki kod, `videokit-core.js`'e bağımlı değildir.
+    (function(){
+      window.openPdf = function openPdf(report, codeDescriptions) {
+        const safe = (v, def='—') => (v===undefined || v===null || v==='') ? def : String(v);
+        const fmtSize = (n) => {
+          if(n===undefined||n===null) return '—'; if(n<1024) return n+' B'; const k=n/1024; if(k<1024) return k.toFixed(1)+' KB'; const m=k/1024; return (m<1024 ? m.toFixed(1)+' MB' : (m/1024).toFixed(1)+' GB');
+        };
+        const approval = new Date().toISOString().replace('T',' ').split('.')[0] + ' UTC';
+        const codes = report.validationCodes || [];
+        const has = (re) => codes.some(c => re.test(c));
+        const getValidationDetailsHtml = () => {
+            const details = [
+                { label: 'Varlık Bütünlüğü', value: has(/asset\.hash\.match/) ? '✅ Eşleşiyor' : (has(/asset\.hash\.mismatch/) ? '❌ EŞLEŞMİYOR' : 'Belirtilmemiş') },
+                { label: 'İmza Geçerliliği', value: has(/signature\.validated/) ? '✅ Geçerli' : (has(/signature\.invalid/) ? '❌ GEÇERSİZ' : 'Mevcut Değil') },
+                { label: 'Sertifika Güveni', value: has(/trust\.chain\.validated/) ? '✅ Güvenilir Kök' : (has(/signingCredential\.untrusted/) ? '⚠️ Güvenilmeyen Kök' : 'Belirtilmemiş') },
+                { label: 'Zaman Damgası (TSA)', value: has(/tsa\.token\.trusted/) ? '✅ Güvenilir' : (has(/tsa\.validated/) ? '✅ Doğrulandı' : 'Mevcut Değil') }
+            ];
+            return `<div class="section"><h3>Doğrulama Detayları</h3><table class="details-table">${details.map(d => `<tr><td><strong>${d.label}</strong></td><td>${d.value}</td></tr>`).join('')}</table></div>`;
+        };
+        const getCodesTableHtml = () => {
+            if (!codes.length) return '';
+            const rows = codes.map(code => `<tr><td><code>${safe(code)}</code></td><td>${safe(codeDescriptions[code] || 'Bu kod için standart bir açıklama bulunamadı.')}</td></tr>`).join('');
+            return `<div class="section"><h3>Tüm Doğrulama Kodları</h3><table class="codes-table"><thead><tr><th>Kod</th><th>Açıklama</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        };
+        const html = `<!doctype html><html><head><meta charset="utf-8"><title>VideoKit Doğrulama Raporu</title><style>body{font-family:system-ui,sans-serif;margin:40px;color:#0f172a;}.header{display:flex;align-items:center;gap:12px;margin-bottom:24px}.logo{width:40px;height:40px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px}.title{font-size:24px;font-weight:700}.subtitle{font-size:14px;color:#64748b}.section{margin-top:28px;page-break-inside:avoid;}.section h3{margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:6px;}table{width:100%;border-collapse:collapse;font-size:14px;}td,th{padding:8px 12px;text-align:left;vertical-align:top;}.kv-table td{border-bottom:1px solid #f0f0f0;}.kv-table strong{color:#334155;}.details-table td{width:50%;border-bottom:1px solid #f0f0f0;}.codes-table{font-size:12px;}.codes-table th{background:#f6f8fa;}.codes-table td{border:1px solid #e5e7eb;}.codes-table code{font-family:monospace;background:#eef;padding:2px 4px;border-radius:4px;word-break:break-all;}.legal{font-size:12px;color:#6b7280;margin-top:40px;}@media print{body{margin:0}}</style></head><body onload="focus();print();setTimeout(()=>close(),600)"><div class="header"><div class="logo">VK</div><div><div class="title">VideoKit Doğrulama Raporu</div><div class="subtitle">Content Credentials (C2PA) Doğrulama Çıktısı</div></div></div><div class="section"><table class="kv-table"><tr><td><strong>Dosya Adı</strong></td><td>${safe(report.file?.name)}</td></tr><tr><td><strong>Boyut</strong></td><td>${fmtSize(report.file?.size)}</td></tr><tr><td><strong>Genel Durum</strong></td><td><strong>${safe(report.verdict?.toUpperCase())}</strong></td></tr><tr><td><strong>Mesaj</strong></td><td>${safe(report.message)}</td></tr><tr><td><strong>Süre</strong></td><td>${report.ms!=null?report.ms+' ms':'—'}</td></tr><tr><td><strong>İmza Zamanı (UTC)</strong></td><td>${safe(report.summary?.time)}</td></tr><tr><td><strong>İmza Sahibi</strong></td><td>${safe(report.summary?.issuer)}</td></tr><tr><td><strong>Başlık</strong></td><td>${safe(report.summary?.title)}</td></tr><tr><td><strong>Yazılım</strong></td><td>${safe(report.summary?.claimGenerator)}</td></tr><tr><td><strong>Dosya Kimliği (SHA‑256)</strong></td><td style="font-family:monospace;word-break:break-all;">${safe(report.fileHash)}</td></tr><tr><td><strong>Onay Tarihi (UTC)</strong></td><td>${approval}</td></tr></table></div>${getValidationDetailsHtml()}${getCodesTableHtml()}<div class="legal">Bu rapor VideoKit tarafından otomatik olarak oluşturulmuştur ve yalnızca bilgilendirme amaçlıdır. Hukuki bir tavsiye niteliği taşımaz.<br><br>VideoKit markası ve logosu tescillidir. Tüm hakları saklıdır.</div></body></html>`;
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const w = window.open(url, '_blank');
+        if (!w) alert('Açılır pencere engellendi.');
+        else w.onload = () => setTimeout(() => URL.revokeObjectURL(url), 10000);
+      };
+    })();
+  </script>
+</body>
+</html>

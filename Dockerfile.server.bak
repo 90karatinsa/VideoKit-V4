@@ -1,0 +1,25 @@
+FROM node:18-alpine
+
+# EntryPoint'ın pg_isready çağrısı için
+RUN apk add --no-cache postgresql-client bash tini
+
+WORKDIR /usr/src/app
+
+# Deterministik prod kurulum
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Uygulama kodu + entrypoint
+COPY . .
+
+# Entrypoint çalıştırılabilir olsun
+RUN chmod +x /usr/src/app/entrypoint.sh
+
+ENV NODE_ENV=production
+EXPOSE 3000
+
+# Tini düzgün sinyal yönetimi için
+ENTRYPOINT ["/sbin/tini","--","/usr/src/app/entrypoint.sh"]
+
+# entrypoint 'exec "$@"' yapıyorsa bu komut çalışır
+CMD ["node","server.js"]

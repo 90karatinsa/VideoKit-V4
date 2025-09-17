@@ -1,0 +1,100 @@
+/* Toplu İşlem Sayfası Özel Stilleri */
+
+#drop-zone {
+  border: 3px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 3rem;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+#drop-zone.drag-over {
+  background-color: #e9ecef;
+  border-color: var(--primary);
+}
+
+#drop-zone p {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #6c757d;
+}
+
+#batch-process-card .batch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+#batch-process-card .batch-summary {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+#upload-progress,
+#process-summary {
+  font-weight: 500;
+}
+
+#file-list-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+#file-list-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#file-list-table th,
+#file-list-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#file-list-table th {
+  background-color: var(--background);
+  position: sticky;
+  top: 0;
+}
+
+#file-list-table tr:last-child td {
+  border-bottom: none;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25em 0.6em;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.375rem;
+  color: #fff;
+}
+
+/* Kiracı satırı hizası */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-waiting { background-color: #6c757d; }
+.status-uploading { background-color: #17a2b8; }
+.status-processing { background-color: var(--primary); }
+.status-completed { background-color: #28a745; }
+.status-failed { background-color: var(--danger); }
+
+.verdict-green { color: #28a745; font-weight: bold; }
+.verdict-yellow { color: #ffc107; font-weight: bold; }
+.verdict-red { color: #dc3545; font-weight: bold; }

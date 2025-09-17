@@ -1,0 +1,45 @@
+# VideoKit Helm Chart için varsayılan değerler.
+# Bu değerler, kurulum sırasında özelleştirilebilir.
+
+# --- API Sunucusu Ayarları ---
+server:
+  replicaCount: 2
+  image:
+    repository: your-docker-registry/videokit-server # Docker imajınızın adresi
+    pullPolicy: IfNotPresent
+    tag: "1.0.0" # İmaj etiketi
+
+# --- Worker Ayarları ---
+worker:
+  replicaCount: 2
+  image:
+    repository: your-docker-registry/videokit-worker # Docker imajınızın adresi
+    pullPolicy: IfNotPresent
+    tag: "1.0.0" # İmaj etiketi
+
+# --- Servis Ayarları ---
+service:
+  type: ClusterIP
+  port: 80
+
+# --- Genel Uygulama Ayarları ---
+redis:
+  # Not: Bu chart Redis kurmaz. Mevcut bir Redis kurulumu gereklidir.
+  # Bitnami Redis chart'ını kullanıyorsanız, servis adı genellikle 'redis-master' olur.
+  url: "redis://redis-master:6379"
+
+# --- Güvenlik Ayarları ---
+# İmzalama anahtarları, base64 ile kodlanmış olarak bir Kubernetes secret'ı içinde saklanmalıdır.
+# `kubectl create secret generic videokit-keys --from-file=private.key --from-file=public.pem`
+# komutuyla oluşturulabilir.
+signingKeys:
+  secretName: "videokit-keys"
+
+# --- Kaynak Limitleri (İsteğe Bağlı) ---
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi

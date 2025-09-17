@@ -1,0 +1,18 @@
+# Docker build context'ine dahil edilmeyecek dosyalar
+node_modules
+npm-debug.log
+
+# Git ve proje dosyaları
+.git
+.gitignore
+
+# Projenin bu konteynerle ilgisi olmayan parçaları
+*.html
+*.md
+videokit-core.js
+vk-cli.js
+misb-0601.schema.json
+
+# Yerel olarak oluşturulan anahtarlar imaja dahil edilmemelidir
+private.key
+public.pem

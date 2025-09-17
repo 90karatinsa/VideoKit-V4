@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Toplu Doğrulama - VideoKit Portalı</title>
+
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="batch.css" />
+
+  <!-- Sayfa betikleri -->
+  <script src="batch.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-content">
+      <img id="portal-logo" alt="Kurum Logosu" class="portal-logo" src="default-logo.svg" />
+      <h1>VideoKit Müşteri Portalı</h1>
+    </div>
+
+    <div class="header-controls">
+      <nav id="main-nav" class="main-nav" hidden>
+        <a href="index.html">Panel</a>
+        <a href="batch.html">Toplu İşlem</a>
+      </nav>
+
+      <div class="language-selector">
+        <label for="lang-switcher" class="sr-only">Dil seçimi</label>
+        <select id="lang-switcher">
+          <option value="tr">Türkçe</option>
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+        </select>
+      </div>
+
+      <!-- Logout header’da; JS id ile buluyor -->
+      <button id="logout-button" class="button button--ghost" style="display:none;" data-i18n="logout_button">
+        Çıkış Yap
+      </button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="view-stack">
+      <section id="batch-view" class="view view--dashboard" hidden>
+        <div id="user-info" class="user-info">
+          <span id="tenant-info-display">Lütfen ana panelden giriş yapın...</span>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="batch_title">Toplu C2PA Doğrulama</h2>
+          <div id="drop-zone">
+            <p data-i18n="batch_drop_hint">
+              Doğrulanacak video dosyalarını buraya sürükleyip bırakın veya seçmek için tıklayın.
+            </p>
+            <input type="file" id="file-input" multiple hidden />
+          </div>
+        </div>
+
+        <div class="card full-width" id="batch-process-card" hidden>
+          <div class="batch-header">
+            <h3 data-i18n="batch_queue_title">İşlem Kuyruğu</h3>
+            <div class="batch-summary">
+              <span id="upload-progress"></span>
+              <span id="process-summary"></span>
+              <button id="download-results-btn" disabled data-i18n="batch_download_zip">
+                Tüm Raporları İndir (.zip)
+              </button>
+            </div>
+          </div>
+
+          <div id="file-list-container">
+            <table id="file-list-table">
+              <thead>
+                <tr>
+                  <th data-i18n="file_name">Dosya Adı</th>
+                  <th data-i18n="status">Durum</th>
+                  <th data-i18n="result">Sonuç</th>
+                </tr>
+              </thead>
+              <tbody id="file-list-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="feedback-container" class="feedback" role="alert" aria-live="assertive"></div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "videokit.fullname" . }}-worker
+  labels:
+    app: {{ include "videokit.fullname" . }}
+    component: worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "videokit.fullname" . }}
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: {{ include "videokit.fullname" . }}
+        component: worker
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          env:
+            - name: REDIS_URL
+              value: {{ .Values.redis.url }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

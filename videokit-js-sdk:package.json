@@ -1,0 +1,38 @@
+{
+  "name": "@videokit/sdk-js",
+  "version": "0.1.0",
+  "description": "VideoKit API için Resmi Node.js İstemci Kütüphanesi",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YourOrg/videokit-js-sdk.git"
+  },
+  "keywords": [
+    "videokit",
+    "sdk",
+    "c2pa",
+    "api-client"
+  ],
+  "author": "VideoKit Product Team",
+  "license": "MIT",
+  "dependencies": {
+    "form-data": "^4.0.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

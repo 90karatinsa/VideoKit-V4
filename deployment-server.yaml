@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "videokit.fullname" . }}-server
+  labels:
+    app: {{ include "videokit.fullname" . }}
+    component: server
+spec:
+  replicas: {{ .Values.server.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "videokit.fullname" . }}
+      component: server
+  template:
+    metadata:
+      labels:
+        app: {{ include "videokit.fullname" . }}
+        component: server
+    spec:
+      containers:
+        - name: server
+          image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: REDIS_URL
+              value: {{ .Values.redis.url }}
+          volumeMounts:
+            - name: signing-keys
+              mountPath: "/usr/src/app/private.key"
+              subPath: "private.key"
+              readOnly: true
+            - name: signing-keys
+              mountPath: "/usr/src/app/public.pem"
+              subPath: "public.pem"
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: signing-keys
+          secret:
+            secretName: {{ .Values.signingKeys.secretName }}

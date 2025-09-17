@@ -1,0 +1,6 @@
+apiVersion: v2
+name: videokit
+description: VideoKit REST API ve Worker'ları için bir Helm chart
+type: application
+version: 0.1.0 # Bu, chart'ın versiyonudur
+appVersion: "1.0.0" # Bu, çalıştırılan uygulamanın versiyonudur

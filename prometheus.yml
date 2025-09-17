@@ -1,0 +1,29 @@
+# Prometheus'un hangi hedefleri ne sıklıkla kazıyacağını (scrape) tanımlayan ana yapılandırma dosyası.
+global:
+  scrape_interval: 15s # Varsayılan olarak her 15 saniyede bir metrikleri topla
+  evaluation_interval: 15s # Uyarı kurallarını her 15 saniyede bir değerlendir
+
+# Uyarı (alerting) kurallarını buradan yönetebiliriz.
+# alertmanager'ı kurup buraya ekleyebiliriz.
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           # - alertmanager:9093
+
+# Kazınacak hedeflerin (endpoints) listesi.
+scrape_configs:
+  - job_name: "prometheus"
+    # Prometheus'un kendi metrikleri
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "videokit-api"
+    # VideoKit API sunucusunun /metrics endpoint'i
+    static_configs:
+      - targets: ["api-server:3000"] # Docker network içindeki servis adı
+
+  - job_name: "videokit-worker"
+    # VideoKit worker'ının metrikleri (gelecekte eklenebilir)
+    # static_configs:
+    #   - targets: ["worker:9100"]

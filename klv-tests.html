@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>VideoKit Core - KLV Birim Testleri</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: monospace; line-height: 1.6; padding: 20px; }
+    .suite { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; border-radius: 8px; }
+    .pass { color: green; }
+    .fail { color: red; font-weight: bold; }
+    .summary { margin-top: 20px; font-size: 1.2em; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>VideoKit Core - KLV Birim Testleri</h1>
+  <div id="results"></div>
+  <div id="summary" class="summary"></div>
+
+  <script type="module">
+    import { VideoKitCore } from './videokit-core.js';
+
+    const resultsDiv = document.getElementById('results');
+    const summaryDiv = document.getElementById('summary');
+    let passed = 0;
+    let failed = 0;
+
+    // Basit bir `assert` (iddia) fonksiyonu
+    function assert(condition, message) {
+      const p = document.createElement('p');
+      if (condition) {
+        p.className = 'pass';
+        p.textContent = `✅ PASS: ${message}`;
+        passed++;
+      } else {
+        p.className = 'fail';
+        p.textContent = `❌ FAIL: ${message}`;
+        failed++;
+      }
+      resultsDiv.appendChild(p);
+    }
+
+    // Float karşılaştırması için küçük bir tolerans (epsilon)
+    const EPSILON = 1e-6;
+    function assertFloatEqual(actual, expected, message) {
+      const isEqual = Math.abs(actual - expected) < EPSILON;
+      assert(isEqual, `${message} (Beklenen: ~${expected}, Gelen: ${actual})`);
+    }
+
+    function startSuite(name) {
+      const suiteDiv = document.createElement('div');
+      suiteDiv.className = 'suite';
+      const h2 = document.createElement('h2');
+      h2.textContent = `Test Suite: ${name}`;
+      suiteDiv.appendChild(h2);
+      // Gelecekteki `assert` sonuçlarının bu yeni suite div'inin içine eklenmesini sağla.
+      resultsDiv.appendChild = suiteDiv.appendChild.bind(suiteDiv);
+    }
+
+    // --- Test Senaryoları ---
+
+    async function testRoundTripBasic() {
+      startSuite('Temel Round-Trip (JSON -> KLV -> JSON)');
+      const sourceJson = {
+        "2": "1678886400123456", // 15 Mart 2023, 12:00:00.123456 UTC
+        "3": "Test Mission 01",
+        "5": 180.5,
+        "13": 39.925533, // Ankara enlem
+        "14": 32.866287, // Ankara boylam
+        "15": 850.5, // Rakım (metre)
+        "65": 12
+      };
+
+      const klvBuffer = VideoKitCore.klv.jsonToBuffer(sourceJson, "12");
+      const resultJson = VideoKitCore.klv.bufferToJson(klvBuffer);
+
+      assert(resultJson["2"] === sourceJson["2"], "Tag 2 (Timestamp) eşleşmeli");
+      assert(resultJson["3"] === sourceJson["3"], "Tag 3 (Mission ID) eşleşmeli");
+      assertFloatEqual(resultJson["5"], sourceJson["5"], "Tag 5 (Heading Angle) eşleşmeli");
+      assertFloatEqual(resultJson["13"], sourceJson["13"], "Tag 13 (Latitude) eşleşmeli");
+      assertFloatEqual(resultJson["14"], sourceJson["14"], "Tag 14 (Longitude) eşleşmeli");
+      assertFloatEqual(resultJson["15"], sourceJson["15"], "Tag 15 (Altitude) eşleşmeli");
+      assert(resultJson["65"] === sourceJson["65"], "Tag 65 (Version) eşleşmeli");
+    }
+
+    async function testEdgeCases() {
+      startSuite('Köşe Durumları (Sınır Değerler)');
+      const testCases = [
+        { name: "Maksimum Enlem", json: { "13": 90.0 } },
+        { name: "Minimum Enlem", json: { "13": -90.0 } },
+      ];
+
+      for (const tc of testCases) {
+        const fullJson = { ...{ "2": "1704067200000000", "65": 8 }, ...tc.json };
+        const klvBuffer = VideoKitCore.klv.jsonToBuffer(fullJson, "8");
+        const resultJson = VideoKitCore.klv.bufferToJson(klvBuffer);
+        const key = Object.keys(tc.json)[0];
+        assertFloatEqual(resultJson[key], tc.json[key], `${tc.name} [Tag ${key}] round-trip doğruluğu`);
+      }
+    }
+    
+    async function testSemanticValidation() {
+        startSuite('Semantik Doğrulama Testleri');
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 1);
+        const futureTimestamp = (BigInt(futureDate.getTime()) * 1000n).toString();
+        
+        let errors = await VideoKitCore.klv.validateJson({ "2": futureTimestamp, "65": 16 });
+        assert(errors.some(e => e.includes('gelecekteki')), 'Gelecekteki zaman damgası yakalanmalı');
+    }
+    
+    async function testChecksumValidation() {
+        startSuite('Checksum (CRC-16) Doğrulama Testleri');
+        
+        const sourceJson = {
+            "2": "1678886400123456",
+            "3": "Integrity Check",
+            "65": 8
+        };
+
+        // 1. Başarılı doğrulama testi (Kabul Kriteri 1)
+        const klvBuffer = VideoKitCore.klv.jsonToBuffer(sourceJson, "8", true);
+        const resultJson = VideoKitCore.klv.bufferToJson(klvBuffer);
+        assert(
+            resultJson._validation_notes && resultJson._validation_notes.some(n => n.includes('✅ CRC Doğrulaması Başarılı')),
+            'Oluşturulan KLV paketi geçerli bir CRC içermeli ve başarıyla doğrulanmalı'
+        );
+
+        // 2. Başarısız doğrulama testi (Kabul Kriteri 2)
+        const tamperedBuffer = new Uint8Array(klvBuffer);
+        // Ortadaki bir byte'ı değiştirerek paketi boz
+        const midIndex = Math.floor(tamperedBuffer.length / 2);
+        tamperedBuffer[midIndex] = tamperedBuffer[midIndex] ^ 0xFF; // XOR ile biti çevir
+
+        const tamperedResultJson = VideoKitCore.klv.bufferToJson(tamperedBuffer.buffer);
+        assert(
+            tamperedResultJson._validation_notes && tamperedResultJson._validation_notes.some(n => n.includes('❌ CRC Hatası')),
+            'Bozulmuş bir KLV paketi için CRC doğrulaması başarısız olmalı'
+        );
+        
+        // 3. Checksum olmadan oluşturma testi
+        const noChecksumBuffer = VideoKitCore.klv.jsonToBuffer(sourceJson, "8", false);
+        const noChecksumResult = VideoKitCore.klv.bufferToJson(noChecksumBuffer);
+        assert(
+             !noChecksumResult._validation_notes || !noChecksumResult._validation_notes.some(n => n.includes('CRC')),
+            'Checksum olmadan oluşturulan paket okunduğunda CRC hatası vermemeli'
+        );
+    }
+
+
+    // Testleri çalıştır
+    (async function runTests() {
+      // Önceki testleri de çağır
+      await testRoundTripBasic();
+      await testEdgeCases();
+      await testSemanticValidation();
+      // Yeni testi ekle
+      await testChecksumValidation();
+
+      // Sonuçları özetle
+      summaryDiv.textContent = `Testler Tamamlandı: ${passed} Başarılı, ${failed} Başarısız.`;
+      summaryDiv.style.color = failed > 0 ? 'red' : 'green';
+    })();
+
+  </script>
+</body>
+</html>

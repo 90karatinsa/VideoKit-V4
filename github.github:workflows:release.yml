@@ -1,0 +1,75 @@
+# Bu GitHub Actions iş akışı, yeni bir Git etiketi (tag) itildiğinde tetiklenir.
+# Docker imajlarını (server, worker) oluşturur, Docker Hub'a iter ve
+# Sigstore/Cosign kullanarak imzalar.
+name: Release and Sign Artifacts
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # v1.0.0, v1.2.3 gibi etiketlerle çalışır
+
+env:
+  # Değişken: Docker imajlarının depolanacağı yer.
+  # Örn: 'docker.io/your-username/videokit' veya 'ghcr.io/your-org/videokit'
+  IMAGE_REGISTRY: docker.io/your-username
+  IMAGE_NAME: videokit
+
+jobs:
+  build-and-sign:
+    name: Build, Push, and Sign Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # ghcr.io'ya yazmak için gerekli
+      id-token: write # Sigstore anahtarsız imzalama için gerekli
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Registry
+        # Docker Hub veya GHCR gibi bir kayıt defterine giriş yapar.
+        # Secrets.DOCKERHUB_USERNAME ve Secrets.DOCKERHUB_TOKEN gibi
+        # repozitory ayarlarında tanımlanmış olması gereken gizli anahtarları kullanır.
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.server
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-server
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Build and push worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.worker
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-worker
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Sign the container images with Cosign
+        # Bu adım, anahtarsız (keyless) imzalama modunu kullanır.
+        # GitHub'ın OIDC sağlayıcısını kullanarak kısa ömürlü bir sertifika alır
+        # ve imzayı Rekor şeffaflık günlüğüne kaydeder.
+        run: |
+          cosign sign --yes "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.meta.outputs.version }}-server"
+          cosign sign --yes "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.meta.outputs.version }}-worker"

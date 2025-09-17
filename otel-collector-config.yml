@@ -1,0 +1,37 @@
+# OpenTelemetry Collector için yapılandırma dosyası
+# Bu Collector, uygulamalardan (API, Worker) OTLP formatında veri alır,
+# işler ve belirtilen hedeflere (örneğin Jaeger, Prometheus, veya bulut servisleri) gönderir.
+
+receivers:
+  # OTLP (OpenTelemetry Protocol) alıcısı.
+  # gRPC (port 4317) ve HTTP (port 4318) üzerinden veri kabul eder.
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  # Jaeger'a trace verilerini göndermek için exporter.
+  # Collector, Jaeger servisi ile aynı docker network'ünde olduğu için
+  # servis adıyla (jaeger) erişebilir.
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true # Yerel ortamda TLS'e gerek yok
+
+  # Hata ayıklama için alınan verileri Collector'ın loglarına yazdırır.
+  # Prodüksiyonda devre dışı bırakılmalıdır.
+  logging:
+    loglevel: debug
+
+processors:
+  # Gelen verileri gruplayarak dışa aktarıcılara gönderir, verimliliği artırır.
+  batch:
+
+service:
+  # pipeline'lar, alıcıları, işlemcileri ve dışa aktarıcıları birbirine bağlar.
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging, jaeger]

@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MISB ST 0601 UAS Datalink Local Set",
+  "description": "MISB ST 0601 standardına uygun bir KLV JSON nesnesinin yapısını tanımlar.",
+  "type": "object",
+  "properties": {
+    "1": {
+      "description": "Checksum (Sağlama Toplamı). Genellikle kütüphane tarafından hesaplanır.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "2": {
+      "description": "Unix Time Stamp (Mikrosaniye cinsinden UTC zamanı). Zorunlu.",
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "3": {
+      "description": "Mission ID (Görev Kimliği)",
+      "type": "string",
+      "maxLength": 127
+    },
+    "4": {
+      "description": "Platform Tail Number (Platform Kuyruk Numarası)",
+      "type": "string",
+      "maxLength": 127
+    },
+    "5": {
+      "description": "Platform Heading Angle (Platform Baş Dümenci Açısı)",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 360
+    },
+    "13": {
+      "description": "Sensor Latitude (Sensör Enlemi)",
+      "type": "number",
+      "minimum": -90,
+      "maximum": 90
+    },
+    "14": {
+      "description": "Sensor Longitude (Sensör Boylamı)",
+      "type": "number",
+      "minimum": -180,
+      "maximum": 180
+    },
+    "15": {
+      "description": "Sensor True Altitude (Sensör Gerçek İrtifası)",
+      "type": "number",
+      "minimum": -900,
+      "maximum": 19000
+    },
+    "65": {
+      "description": "MISB ST 0601 Version (MISB ST 0601 Sürümü). Zorunlu.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "_2_iso": {
+      "description": "Tag 2'nin ISO 8601 formatındaki hali (sadece bilgilendirme amaçlı).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "_validation_notes": {
+      "description": "İşleme sırasında oluşturulan doğrulama notları.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "2",
+    "65"
+  ],
+  "additionalProperties": true
+}

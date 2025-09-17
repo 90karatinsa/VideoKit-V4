@@ -1,0 +1,9 @@
+<svg width="150" height="40" viewBox="0 0 150 40" xmlns="http://www.w3.org/2000/svg" fill="#007bff">
+  <style>
+    .text { font: bold 24px sans-serif; }
+    .rect { fill: var(--primary, #007bff); transition: fill 0.3s ease; }
+  </style>
+  <rect class="rect" width="40" height="40" rx="8"/>
+  <path d="M12 12 L20 28 L28 12" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="50" y="28" class="text rect">VideoKit</text>
+</svg>

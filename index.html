@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoKit Müşteri Portalı</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <img id="portal-logo" alt="Kurum Logosu" class="portal-logo" src="default-logo.svg">
+            <h1 data-i18n="portal_title">VideoKit Müşteri Portalı</h1>
+        </div>
+        <div class="header-controls">
+            <nav id="main-nav" class="main-nav" hidden>
+                <a href="index.html" data-i18n="nav_dashboard">Panel</a>
+                <a href="batch.html" data-i18n="nav_batch_processing">Toplu İşlem</a>
+            </nav>
+            <div class="language-selector">
+                <label for="lang-switcher" class="sr-only" data-i18n="language_switcher_label">Dil seçimi</label>
+                <select id="lang-switcher">
+                    <option value="tr">Türkçe</option>
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                    <option value="es">Español</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <div class="view-stack">
+            <section id="login-view" class="view view--auth">
+                <article class="card card--form">
+                    <h2 data-i18n="login_title">Giriş Yap</h2>
+                    <p data-i18n="login_prompt_new">Hesabınıza erişmek için giriş yapın.</p>
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-email" data-i18n="email_label">E-posta Adresi</label>
+                            <input type="email" id="login-email" required autocomplete="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password" data-i18n="password_label">Şifre</label>
+                            <input type="password" id="login-password" required autocomplete="current-password">
+                        </div>
+                        <button type="submit" data-i18n="login_button">Giriş Yap</button>
+                    </form>
+                    <p class="auth-toggle-link"><a href="#" id="show-forgot-password-view" class="forgot-password-link" data-i18n="forgot_password_link">Şifrenizi mi unuttunuz?</a></p>
+                    <p class="auth-toggle-link"><a href="#" id="show-register-view" data-i18n="go_to_register_link">Hesabınız yok mu? Kaydolun.</a></p>
+                </article>
+            </section>
+
+            <section id="register-view" class="view view--auth" hidden>
+                <article class="card card--form">
+                    <h2 data-i18n="register_title">Yeni Hesap Oluştur</h2>
+                    <p data-i18n="register_prompt">Platformu denemek için yeni bir hesap oluşturun.</p>
+                    <form id="register-form">
+                        <div class="form-group">
+                            <label for="company-name" data-i18n="company_name_label">Şirket Adı</label>
+                            <input type="text" id="company-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-email" data-i18n="email_label">E-posta Adresi</label>
+                            <input type="email" id="register-email" required autocomplete="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="register-password" data-i18n="password_label">Şifre</label>
+                            <input type="password" id="register-password" required minlength="8" autocomplete="new-password">
+                        </div>
+                        <button type="submit" data-i18n="register_button">Kaydol</button>
+                    </form>
+                    <p class="auth-toggle-link"><a href="#" id="show-login-view-from-register" data-i18n="go_to_login_link">Zaten bir hesabınız var mı? Giriş yapın.</a></p>
+                </article>
+            </section>
+
+            <section id="forgot-password-view" class="view view--auth" hidden>
+                <article class="card card--form">
+                    <h2 data-i18n="forgot_password_title">Şifremi Unuttum</h2>
+                    <p data-i18n="forgot_password_prompt">Şifre sıfırlama linki göndermek için e-posta adresinizi girin.</p>
+                    <form id="forgot-password-form">
+                        <div class="form-group">
+                            <label for="forgot-email" data-i18n="email_label">E-posta Adresi</label>
+                            <input type="email" id="forgot-email" required autocomplete="email">
+                        </div>
+                        <button type="submit" data-i18n="send_reset_link_button">Sıfırlama Linki Gönder</button>
+                    </form>
+                    <p class="auth-toggle-link"><a href="#" id="show-login-view-from-forgot" data-i18n="back_to_login_link">Giriş ekranına geri dön.</a></p>
+                </article>
+            </section>
+
+            <section id="reset-password-view" class="view view--auth" hidden>
+                <article class="card card--form">
+                    <h2 data-i18n="reset_password_title">Yeni Şifre Oluştur</h2>
+                    <p data-i18n="reset_password_prompt">Lütfen yeni şifrenizi girin. En az 8 karakter olmalıdır.</p>
+                    <form id="reset-password-form">
+                        <div class="form-group">
+                            <label for="reset-password" data-i18n="new_password_label">Yeni Şifre</label>
+                            <input type="password" id="reset-password" required minlength="8" autocomplete="new-password">
+                        </div>
+                        <button type="submit" data-i18n="update_password_button">Şifreyi Güncelle</button>
+                    </form>
+                </article>
+            </section>
+
+            <section id="dashboard-view" class="view view--dashboard" hidden>
+                <article class="card dashboard-header">
+                    <div class="dashboard-header__meta">
+                        <span class="dashboard-eyebrow" data-i18n="dashboard_overview_label">Genel Bakış</span>
+                        <h2 id="tenant-name-display"></h2>
+                        <p class="dashboard-description" data-i18n="dashboard_subheading">Aboneliğinizi, kullanımınızı ve API anahtarlarınızı buradan yönetin.</p>
+                    </div>
+                    <div class="dashboard-header__actions">
+                        <button type="button" id="logout-button" class="button button--ghost" data-i18n="logout_button">Çıkış Yap</button>
+                    </div>
+                </article>
+
+                <div class="dashboard-grid">
+                    <article class="card">
+                        <div class="card-header">
+                            <h3 data-i18n="subscription_info_title">Abonelik Bilgileri</h3>
+                            <a href="#" target="_blank" class="button button--ghost button--small" data-i18n="manage_subscription_button">Aboneliği Yönet (Stripe)</a>
+                        </div>
+                        <div id="subscription-info" class="card-content">
+                            <p><strong data-i18n="plan_label">Plan:</strong> <span id="plan-name" data-i18n="loading_text">Yükleniyor...</span></p>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card-header">
+                            <h3 data-i18n="usage_details_title">Kullanım Detayları</h3>
+                        </div>
+                        <div id="usage-info" class="card-content">
+                            <p data-i18n="loading_text">Yükleniyor...</p>
+                        </div>
+                    </article>
+
+                    <article class="card card--keys full-width">
+                        <div class="card-header">
+                            <div>
+                                <h3 data-i18n="api_keys_title">API Anahtarları Yönetimi</h3>
+                                <p class="card-subtitle" data-i18n="api_keys_subtitle">Aktif anahtarlarınızı yönetin ve gerekirse iptal edin.</p>
+                            </div>
+                            <button type="button" id="create-key-btn" data-i18n="create_key_button">Yeni Anahtar Oluştur</button>
+                        </div>
+                        <div id="new-key-alert" class="key-alert" hidden>
+                            <div class="key-alert__body">
+                                <div class="key-alert__text">
+                                    <strong data-i18n="new_key_notice_title">Yeni API anahtarınız hazır</strong>
+                                    <p data-i18n="new_key_notice_message">Bu anahtarı hemen kopyalayın. Güvenlik nedeniyle bu ekrandan ayrıldığınızda anahtar tekrar gösterilmeyecektir.</p>
+                                </div>
+                                <div class="key-alert__value">
+                                    <code id="new-key-value"></code>
+                                </div>
+                            </div>
+                            <div class="key-alert__actions">
+                                <button type="button" class="button button--ghost" id="copy-new-key" data-i18n="copy_key_button">Anahtarı kopyala</button>
+                                <button type="button" class="button button--ghost" id="dismiss-new-key" data-i18n="dismiss_key_button">Gizle</button>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <ul id="api-keys-list" class="key-list">
+                                <li class="key-row key-row--empty">
+                                    <div class="key-row__meta">
+                                        <span data-i18n="no_api_keys_yet">Henüz bir API anahtarınız yok.</span>
+                                        <small data-i18n="api_keys_empty_description">İlk anahtarınızı oluşturmak için yukarıdaki butonu kullanın.</small>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="card full-width analytics-card">
+                        <div class="card-header">
+                            <div>
+                                <h3 data-i18n="analytics_title">Kullanım Analitikleri</h3>
+                                <p class="card-subtitle" data-i18n="analytics_subtitle">Son işlemlerinizin performansını inceleyin.</p>
+                            </div>
+                        </div>
+                        <div class="analytics-controls">
+                            <div class="date-range">
+                                <label for="start-date" data-i18n="analytics_date_start">Başlangıç</label>
+                                <input type="date" id="start-date">
+                                <label for="end-date" data-i18n="analytics_date_end">Bitiş</label>
+                                <input type="date" id="end-date">
+                            </div>
+                            <button type="button" id="export-csv-btn" class="button button--ghost" data-i18n="analytics_export_button">CSV Olarak Dışa Aktar</button>
+                        </div>
+                        <div class="analytics-summary">
+                            <div class="stat-box">
+                                <h4 data-i18n="analytics_total_calls">Toplam API Çağrısı</h4>
+                                <p id="total-calls-stat">0</p>
+                            </div>
+                            <div class="stat-box">
+                                <h4 data-i18n="analytics_success_rate">Başarı Oranı</h4>
+                                <div class="success-ratio">
+                                    <div class="success-bar-container">
+                                        <div class="success-bar" id="success-bar"></div>
+                                    </div>
+                                    <span id="success-percentage">0%</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <h4 data-i18n="analytics_avg_time">Ort. İşlem Süresi</h4>
+                                <p id="avg-time-stat">0 ms</p>
+                            </div>
+                        </div>
+                        <div class="activities-table-container">
+                            <h4 data-i18n="analytics_recent_activity">Son Aktiviteler</h4>
+                            <table class="activities-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="analytics_table_date">Tarih</th>
+                                        <th data-i18n="analytics_table_type">İşlem Türü</th>
+                                        <th data-i18n="analytics_table_status">Durum</th>
+                                        <th data-i18n="analytics_table_duration">Süre (ms)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activities-table-body"></tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="feedback-container" class="feedback" role="alert" aria-live="assertive"></div>
+
+    <template id="api-key-template">
+        <li class="key-row">
+            <div class="key-row__meta">
+                <span class="api-key-value"></span>
+                <small data-i18n="api_key_masked_hint">Güvenlik için anahtarın sadece başlangıcı ve sonu görüntülenir.</small>
+            </div>
+            <div class="key-row__actions">
+                <button type="button" class="delete-btn" data-i18n="delete_button">Sil</button>
+            </div>
+        </li>
+    </template>
+</body>
+</html>

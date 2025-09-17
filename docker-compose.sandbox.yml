@@ -1,0 +1,54 @@
+# VideoKit Sandbox Ortamı için Docker Compose dosyası.
+# Bu ortam, üretimden tamamen izole çalışır.
+# Başlatmak için: docker-compose -f docker-compose.sandbox.yml up --build
+# Durdurmak için: docker-compose -f docker-compose.sandbox.yml down
+
+version: '3.8'
+
+services:
+  # Sandbox Redis: Sandbox için ayrı mesaj kuyruğu ve önbellek
+  sandbox-redis:
+    image: "redis:7-alpine"
+    container_name: videokit-redis-sandbox
+    ports:
+      - "6380:6379" # Ana makinede 6380 portunu kullanır (üretim 6379 ile çakışmaz)
+    volumes:
+      - sandbox_redis_data:/data
+    restart: unless-stopped
+
+  # Sandbox API Sunucusu: Sandbox isteklerini karşılar
+  sandbox-api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: videokit-api-server-sandbox
+    ports:
+      - "3001:3000" # Ana makinede 3001 portunu kullanır (üretim 3000 ile çakışmaz)
+    environment:
+      - NODE_ENV=sandbox # YENİ: Uygulamaya sandbox modunda olduğunu bildirir
+      - REDIS_URL=redis://sandbox-redis:6379 # Sandbox Redis'e bağlanır
+    depends_on:
+      - sandbox-redis
+    volumes:
+      - ./public.pem:/usr/src/app/public.pem:ro
+      - ./private.key:/usr/src/app/private.key:ro
+    restart: unless-stopped
+
+  # Sandbox Worker: Sandbox'a ait arka plan işlerini yapar
+  sandbox-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: videokit-worker-sandbox
+    environment:
+      - NODE_ENV=sandbox # YENİ: Uygulamaya sandbox modunda olduğunu bildirir
+      - REDIS_URL=redis://sandbox-redis:6379 # Sandbox Redis'e bağlanır
+    depends_on:
+      - sandbox-redis
+    restart: unless-stopped
+
+  # Not: Prometheus ve Grafana bu sandbox tanımına eklenmedi.
+  # Gerekirse, farklı portlar ve konfigürasyonlarla eklenebilirler.
+
+volumes:
+  sandbox_redis_data:

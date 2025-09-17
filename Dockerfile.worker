@@ -1,0 +1,20 @@
+# === VideoKit Arka Plan İşçisi için Docker imajı ===
+# Bu imaj, Redis kuyruğundaki ağır işleri (C2PA doğrulama vb.)
+# yürüten 'worker.js' uygulamasını çalıştırır.
+
+# Adım 1: Temel imajı seç
+FROM node:18-alpine AS base
+
+# Adım 2: Çalışma dizinini ayarla
+WORKDIR /usr/src/app
+
+# Adım 3: Bağımlılıkları yükle
+COPY package.json ./
+RUN npm install --production
+
+# Adım 4: Uygulama kaynak kodunu kopyala
+# Sadece işçi için gerekli dosyaları kopyalıyoruz.
+COPY worker.js ./
+
+# Adım 5: Uygulamayı başlat
+CMD ["node", "worker.js"]
