@@ -13,6 +13,8 @@
     "seed:sandbox": "node seed-db.js --sandbox",
     "reset:sandbox": "docker-compose -f docker-compose.sandbox.yml down -v && npm run seed:sandbox && docker-compose -f docker-compose.sandbox.yml up -d --build",
     "migrate": "node-pg-migrate",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down",
     "test:email": "node -r dotenv/config test-email.js"
   },
   "dependencies": {
