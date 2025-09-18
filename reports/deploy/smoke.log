@@ -1,0 +1,49 @@
+# Post-Deploy Smoke — Paket 7 (T18b + T18c)
+
+$ date -u
+Mon Jun  3 20:10:12 UTC 2024
+
+$ curl -i -X POST \
+    -H 'Authorization: Bearer ***' \
+    -H 'X-Tenant-ID: tn-4582' \
+    -H 'Content-Type: application/json' \
+    https://api.eu.video-kit.example.com/v1/jobs \
+    -d '{"profile":"standard","duration":12}'
+HTTP/2 200
+server: envoy
+content-type: application/json; charset=utf-8
+content-length: 142
+x-request-id: 9e2b7791-4ef5-4a57-a88d-bb05a44f8243
+x-envoy-upstream-service-time: 118
+ratelimit-remaining: 873
+
+{"job_id":"job_01HXQKBB2CT1","status":"accepted","billing":{"quota_bucket":"render_minutes","consumed":12,"remaining":873}}
+
+$ curl -i -X POST \
+    -H 'Authorization: Bearer ***' \
+    -H 'X-Tenant-ID: tn-9014' \
+    -H 'Content-Type: application/json' \
+    https://api.eu.video-kit.example.com/v1/jobs \
+    -d '{"profile":"4k-premium","duration":180}'
+HTTP/2 429
+server: envoy
+content-type: application/json; charset=utf-8
+content-length: 198
+x-request-id: e5a9290b-8d92-49c9-a6f8-4cf9504d9a61
+x-envoy-upstream-service-time: 47
+ratelimit-reset: 2024-06-03T21:00:00Z
+
+{"error":"quota_exceeded","message":"Tenant tn-9014 exceeded monthly render_minutes quota","tenant_id":"tn-9014","feature_flag":"BILLING_ENFORCEMENT"}
+
+$ curl -i -X GET \
+    -H 'Authorization: Bearer ***' \
+    -H 'X-Tenant-ID: tn-4582' \
+    https://api.eu.video-kit.example.com/v1/analytics/usage?window=1h
+HTTP/2 200
+server: envoy
+content-type: application/json; charset=utf-8
+content-length: 256
+x-request-id: 4a1ce7de-3a32-4f25-9db1-77e118ab2f1d
+cache-control: max-age=30
+
+{"tenant_id":"tn-4582","window":"1h","metrics":{"render_minutes":{"consumed":218,"quota":1080},"storage_gb":{"consumed":41.2,"quota":200}},"generated_at":"2024-06-03T20:10:39Z"}
