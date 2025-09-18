@@ -43,6 +43,55 @@ end
 return {1, newTotal, newOp}
 `;
 
+const READ_RATE_LIMIT_LUA = `
+local zsetKey = KEYS[1]
+local counterKey = KEYS[2]
+local now = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local limit = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+
+redis.call('ZREMRANGEBYSCORE', zsetKey, 0, now - window)
+local current = redis.call('ZCARD', zsetKey)
+local retryAfterMs = 0
+
+if limit <= 0 then
+  return {1, current, retryAfterMs}
+end
+
+if current >= limit then
+  local oldest = redis.call('ZRANGE', zsetKey, 0, 0, 'WITHSCORES')
+  if #oldest > 0 then
+    retryAfterMs = math.max(0, (tonumber(oldest[2]) + window) - now)
+  end
+  return {0, current, retryAfterMs}
+end
+
+local sequence = redis.call('INCR', counterKey)
+redis.call('ZADD', zsetKey, now, now .. '-' .. sequence)
+redis.call('EXPIRE', zsetKey, ttl)
+redis.call('EXPIRE', counterKey, ttl)
+
+current = current + 1
+
+if current >= limit then
+  local oldestAfterInsert = redis.call('ZRANGE', zsetKey, 0, 0, 'WITHSCORES')
+  if #oldestAfterInsert > 0 then
+    retryAfterMs = math.max(0, (tonumber(oldestAfterInsert[2]) + window) - now)
+  end
+end
+
+return {1, current, retryAfterMs}
+`;
+
+const USAGE_THRESHOLDS = [
+  { value: 0.8, label: '80' },
+  { value: 0.9, label: '90' },
+  { value: 1, label: '100' },
+];
+
+const READ_RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
+
 const state = {
   redis: null,
   dbPool: null,
@@ -50,6 +99,10 @@ const state = {
   idempotencyTtlSeconds: DEFAULT_IDEMPOTENCY_TTL_SECONDS,
   planCache: new Map(),
   logger: console,
+  readRateLimits: new Map(),
+  readRateLimitWindowMs: READ_RATE_LIMIT_WINDOW_MS_DEFAULT,
+  thresholdCache: new Map(),
+  readLimiterCache: new Map(),
 };
 
 const histogramName = 'videokit_api_billable_duration_ms';
@@ -73,12 +126,32 @@ if (!requestCounter) {
   });
 }
 
+const normalizeRateLimitMap = (limits) => {
+  if (!limits) return new Map();
+
+  if (limits instanceof Map) {
+    return new Map(limits.entries());
+  }
+
+  const map = new Map();
+  for (const [key, value] of Object.entries(limits)) {
+    const num = Number(value);
+    if (Number.isFinite(num) && num > 0) {
+      map.set(key, num);
+    }
+  }
+
+  return map;
+};
+
 export const configureBilling = ({
   redis,
   dbPool,
   now,
   idempotencyTtlSeconds,
   logger,
+  readRateLimits,
+  readRateLimitWindowMs,
 } = {}) => {
   if (redis) state.redis = redis;
   if (dbPool) state.dbPool = dbPool;
@@ -87,6 +160,12 @@ export const configureBilling = ({
     state.idempotencyTtlSeconds = idempotencyTtlSeconds;
   }
   if (logger) state.logger = logger;
+  if (readRateLimits) {
+    state.readRateLimits = normalizeRateLimitMap(readRateLimits);
+  }
+  if (Number.isFinite(readRateLimitWindowMs) && readRateLimitWindowMs > 0) {
+    state.readRateLimitWindowMs = readRateLimitWindowMs;
+  }
 };
 
 const ensureConfigured = () => {
@@ -423,6 +502,96 @@ const extractEndpointLimit = (override) => {
   return null;
 };
 
+const coercePositiveNumber = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) {
+    return null;
+  }
+  return num;
+};
+
+const extractReadRateLimitOverride = (override) => {
+  if (!override) return null;
+
+  const candidates = [
+    override.read_rate_limit_per_minute,
+    override.rate_limit_per_minute,
+    override.per_minute,
+    override.limit_per_minute,
+    override.limit,
+    override.rateLimitPerMinute,
+  ];
+
+  for (const candidate of candidates) {
+    const value = coercePositiveNumber(candidate);
+    if (value != null) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
+const getReadRateLimitForTenant = (req) => {
+  const billing = ensureReqState(req);
+  const tenantPlanId = req.tenant?.plan ?? req.tenant?.planId ?? null;
+  const overrides = billing.quota?.endpointOverrides ?? {};
+
+  const overrideCandidates = [
+    overrides.__read__,
+    overrides.READ,
+    overrides['GET'],
+  ];
+
+  for (const override of overrideCandidates) {
+    const limit = extractReadRateLimitOverride(override);
+    if (limit != null) {
+      return limit;
+    }
+  }
+
+  const plan = billing.plan ?? null;
+  if (plan?.endpoint_overrides) {
+    const planOverrideCandidates = [
+      plan.endpoint_overrides.__read__,
+      plan.endpoint_overrides.READ,
+      plan.endpoint_overrides['GET'],
+    ];
+
+    for (const override of planOverrideCandidates) {
+      const limit = extractReadRateLimitOverride(override);
+      if (limit != null) {
+        return limit;
+      }
+    }
+  }
+
+  const directCandidates = [
+    billing.quota?.readRateLimitPerMinute,
+    billing.quota?.rate_limit_per_minute,
+    billing.quota?.rateLimitPerMinute,
+    plan?.read_rate_limit_per_minute,
+    plan?.rate_limit_per_minute,
+    plan?.rateLimitPerMinute,
+  ];
+
+  for (const candidate of directCandidates) {
+    const limit = coercePositiveNumber(candidate);
+    if (limit != null) {
+      return limit;
+    }
+  }
+
+  if (tenantPlanId && state.readRateLimits instanceof Map) {
+    const fallback = coercePositiveNumber(state.readRateLimits.get(tenantPlanId));
+    if (fallback != null) {
+      return fallback;
+    }
+  }
+
+  return null;
+};
+
 export const incrementUsageAtomic = async (tenantId, endpoint, weight, periodKey, options = {}) => {
   if (!tenantId || !endpoint || !periodKey) {
     throw new Error('incrementUsageAtomic requires tenantId, endpoint, and periodKey.');
@@ -510,6 +679,81 @@ export const incrementUsageAtomic = async (tenantId, endpoint, weight, periodKey
   }
 };
 
+const cleanupThresholdCache = () => {
+  const now = Date.now();
+  for (const [key, expiresAt] of state.thresholdCache.entries()) {
+    if (expiresAt <= now) {
+      state.thresholdCache.delete(key);
+    }
+  }
+};
+
+const markThresholdLogged = async (key, ttlSeconds) => {
+  const ttl = Math.max(1, Math.floor(ttlSeconds));
+
+  if (state.redis) {
+    try {
+      const result = await state.redis.set(key, '1', 'EX', ttl, 'NX');
+      if (result === 'OK') {
+        return true;
+      }
+      if (result) {
+        return false;
+      }
+    } catch (error) {
+      state.logger?.warn?.({ err: error }, '[billing] Failed to persist usage threshold marker to Redis.');
+    }
+  }
+
+  cleanupThresholdCache();
+
+  const now = Date.now();
+  const expiresAt = now + ttl * 1000;
+  const existing = state.thresholdCache.get(key) ?? 0;
+  if (existing > now) {
+    return false;
+  }
+
+  state.thresholdCache.set(key, expiresAt);
+  return true;
+};
+
+const emitUsageThresholdEvents = async ({ tenantId, endpoint, usage, limit, period }) => {
+  if (!tenantId || !endpoint) return;
+
+  const limitValue = coercePositiveNumber(limit);
+  if (limitValue == null) return;
+
+  const usageValue = Number(usage);
+  if (!Number.isFinite(usageValue) || usageValue < 0) return;
+
+  const ratio = usageValue / limitValue;
+  if (!Number.isFinite(ratio)) return;
+
+  const ttlSeconds = Math.max(1, period?.ttlSeconds ?? 86_400);
+
+  for (const threshold of USAGE_THRESHOLDS) {
+    if (ratio >= threshold.value) {
+      const key = `usage_threshold:${tenantId}:${endpoint}:${period?.key ?? 'unknown'}:${threshold.label}`;
+      const shouldLog = await markThresholdLogged(key, ttlSeconds);
+      if (shouldLog) {
+        state.logger?.info?.(
+          {
+            event: 'usage.threshold',
+            tenantId,
+            endpoint,
+            period: period?.key ?? null,
+            threshold: threshold.value,
+            usage: usageValue,
+            limit: limitValue,
+          },
+          `Usage threshold ${threshold.label}% reached`,
+        );
+      }
+    }
+  }
+};
+
 export const enforceQuota = async (req, res, next) => {
   if (!isBillable(req)) return next();
 
@@ -543,6 +787,16 @@ export const enforceQuota = async (req, res, next) => {
     billing.usage = usage;
     billing.weight = weight;
 
+    if (limit != null) {
+      await emitUsageThresholdEvents({
+        tenantId,
+        endpoint: operation.normalizedEndpoint,
+        usage: usage.total,
+        limit,
+        period: billing.period,
+      });
+    }
+
     if (!usage.allowed) {
       return res.status(429).json({
         code: 'QUOTA_EXCEEDED',
@@ -561,6 +815,122 @@ export const enforceQuota = async (req, res, next) => {
 
     req.log?.error?.({ err: error }, '[billing] enforceQuota failed');
     res.status(500).json({ code: 'BILLING_FAILURE' });
+  }
+};
+
+const fallbackReadLimiter = (tenantId, nowMs, windowMs, limit) => {
+  if (!tenantId) {
+    return { allowed: true, count: 0, retryAfterMs: 0 };
+  }
+
+  const bucket = state.readLimiterCache.get(tenantId) ?? [];
+  const cutoff = nowMs - windowMs;
+  const filtered = bucket.filter((ts) => ts > cutoff);
+
+  let allowed = true;
+  let count;
+  let retryAfterMs = 0;
+
+  if (filtered.length >= limit) {
+    allowed = false;
+    count = filtered.length;
+    retryAfterMs = Math.max(0, (filtered[0] + windowMs) - nowMs);
+  } else {
+    filtered.push(nowMs);
+    count = filtered.length;
+    if (count >= limit) {
+      const firstTs = filtered[0] ?? nowMs;
+      retryAfterMs = Math.max(0, (firstTs + windowMs) - nowMs);
+    }
+  }
+
+  state.readLimiterCache.set(tenantId, filtered);
+  return { allowed, count, retryAfterMs };
+};
+
+export const enforceReadRateLimit = async (req, res, next) => {
+  if ((req.method || '').toUpperCase() !== 'GET') {
+    return next();
+  }
+
+  try {
+    const { redis } = ensureConfigured();
+    const tenantId = req.tenant?.id;
+    if (!tenantId) {
+      return next();
+    }
+
+    const limit = getReadRateLimitForTenant(req);
+    const limitValueRaw = coercePositiveNumber(limit);
+    if (limitValueRaw == null) {
+      return next();
+    }
+
+    const limitValue = Math.max(1, Math.floor(limitValueRaw));
+
+    const windowMs = state.readRateLimitWindowMs ?? READ_RATE_LIMIT_WINDOW_MS_DEFAULT;
+    const nowMs = Date.now();
+    const ttlSeconds = Math.max(1, Math.ceil(windowMs / 1000) * 2);
+
+    let result = { allowed: true, count: 0, retryAfterMs: 0 };
+
+    if (redis) {
+      try {
+        const evalResult = await redis.eval(
+          READ_RATE_LIMIT_LUA,
+          2,
+          `read_rate:${tenantId}`,
+          `read_rate:${tenantId}:seq`,
+          nowMs,
+          windowMs,
+          limitValue,
+          ttlSeconds,
+        );
+
+        result = {
+          allowed: evalResult?.[0] === 1,
+          count: Number(evalResult?.[1] ?? 0),
+          retryAfterMs: Number(evalResult?.[2] ?? 0),
+        };
+      } catch (error) {
+        state.logger?.warn?.({ err: error }, '[billing] GET rate limiter Redis failure, using in-memory window.');
+        result = fallbackReadLimiter(tenantId, nowMs, windowMs, limitValue);
+      }
+    } else {
+      result = fallbackReadLimiter(tenantId, nowMs, windowMs, limitValue);
+    }
+
+    result.count = Number.isFinite(result.count) ? result.count : 0;
+    result.retryAfterMs = Number.isFinite(result.retryAfterMs) ? Math.max(0, result.retryAfterMs) : 0;
+
+    const remaining = Math.max(0, Math.floor(limitValue - result.count));
+    res.setHeader('X-RateLimit-Limit', limitValue);
+    res.setHeader('X-RateLimit-Remaining', remaining);
+
+    const retryAfterSeconds = Math.ceil((result.retryAfterMs || 0) / 1000);
+    if (retryAfterSeconds > 0) {
+      res.setHeader('Retry-After', retryAfterSeconds);
+      const resetEpoch = Math.ceil((nowMs + result.retryAfterMs) / 1000);
+      res.setHeader('X-RateLimit-Reset', resetEpoch);
+    } else {
+      const resetEpoch = Math.ceil((nowMs + windowMs) / 1000);
+      res.setHeader('X-RateLimit-Reset', resetEpoch);
+    }
+
+    const billing = ensureReqState(req);
+    billing.readRateLimit = limitValue;
+    billing.readRateRemaining = remaining;
+
+    if (!result.allowed) {
+      const operation = getOperationContext(req);
+      req.log?.warn?.({ tenantId, endpoint: operation.normalizedEndpoint, limit: limitValue, count: result.count }, '[billing] GET rate limit exceeded');
+      return res.status(429).json({ code: 'READ_RATE_LIMIT_EXCEEDED', message: 'Too many read requests. Please slow down.' });
+    }
+
+    return next();
+  } catch (error) {
+    req.log?.error?.({ err: error }, '[billing] Read rate limiter failure');
+    return res.status(500).json({ code: 'READ_RATE_LIMIT_FAILURE' });
   }
 };
 
@@ -633,9 +1003,13 @@ export const createBillingMiddleware = ({
   now,
   idempotencyTtlSeconds,
   logger,
+  readRateLimits,
+  readRateLimitWindowMs,
 } = {}) => {
-  configureBilling({ redis, dbPool, now, idempotencyTtlSeconds, logger });
-  return [resolveTenant, startTimer, enforceQuota, finalizeAndLog];
+  configureBilling({ redis, dbPool, now, idempotencyTtlSeconds, logger, readRateLimits, readRateLimitWindowMs });
+  const chain = [resolveTenant, startTimer, enforceQuota, finalizeAndLog];
+  chain.rateLimitRead = enforceReadRateLimit;
+  return chain;
 };
 
 export default {

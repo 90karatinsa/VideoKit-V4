@@ -334,11 +334,21 @@ const plans = {
 // --- Auth & Billing Middleware ---
 const authMiddleware = createAuthMiddleware({ dbPool, config });
 const { protect, authorize } = authMiddleware;
-const [resolveTenant, startTimer, enforceQuota, finalizeAndLog] = createBillingMiddleware({
+const readRateLimits = Object.fromEntries(
+    Object.entries(plans)
+        .map(([planId, plan]) => [planId, plan.rateLimitPerMinute])
+        .filter(([, limit]) => Number.isFinite(limit) && limit > 0),
+);
+const billingMiddleware = createBillingMiddleware({
     dbPool,
     redis: redisConnection,
     logger,
+    readRateLimits,
 });
+const [resolveTenant, startTimer, enforceQuota, finalizeAndLog] = billingMiddleware;
+const rateLimitRead = typeof billingMiddleware.rateLimitRead === 'function'
+    ? billingMiddleware.rateLimitRead
+    : null;
 
 const attachFinalizeOnce = (req, res) => {
     if (req.billing?.__billingFinalizeAttached) {
@@ -359,8 +369,11 @@ const resolveTenantWithFinalize = (req, res, next) => {
     return resolveTenant(req, res, next);
 };
 
-const billingReadChain = [resolveTenantWithFinalize, startTimer];
-const billingWriteChain = [...billingReadChain, enforceQuota];
+const baseBillingChain = [resolveTenantWithFinalize, startTimer];
+const billingReadChain = rateLimitRead
+    ? [...baseBillingChain, rateLimitRead]
+    : [...baseBillingChain];
+const billingWriteChain = [...baseBillingChain, enforceQuota];
 
 const withFinalize = (handler) => async (req, res, next) => {
     attachFinalizeOnce(req, res);
