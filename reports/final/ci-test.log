@@ -1,0 +1,16 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> videokit-api@1.0.0 test
+> NODE_OPTIONS=--experimental-vm-modules jest
+
+(node:5165) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS __tests__/billing.integration.test.mjs
+PASS __tests__/billing.unit.test.mjs
+PASS __tests__/analytics.integration.test.mjs
+
+Test Suites: 3 passed, 3 total
+Tests:       13 passed, 13 total
+Snapshots:   0 total
+Time:        0.878 s, estimated 1 s
+Ran all test suites.

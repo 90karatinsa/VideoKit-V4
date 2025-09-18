@@ -1,91 +1,133 @@
 [
   {
+    "file": "__tests__/analytics.integration.test.mjs",
+    "line": 15,
+    "text": "POST",
+    "context": "event.eventType ?? 'POST',"
+  },
+  {
+    "file": "__tests__/analytics.integration.test.mjs",
+    "line": 25,
+    "text": "analytics aggregation uses real api_events data",
+    "context": "describe('analytics aggregation uses real api_events data', () => {"
+  },
+  {
+    "file": "__tests__/analytics.integration.test.mjs",
+    "line": 26,
+    "text": "hourly and daily aggregations match the analytics fixtures",
+    "context": "test('hourly and daily aggregations match the analytics fixtures', async () => {"
+  },
+  {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 153,
+    "line": 52,
     "text": "X-Tenant-Id",
     "context": "const tenantId = req.get('X-Tenant-Id') || 'tenant-a';"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 190,
+    "line": 91,
     "text": "billing integration flows",
     "context": "describe('billing integration flows', () => {"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 191,
+    "line": 92,
     "text": "allows writes below quota and increments usage counters",
     "context": "test('allows writes below quota and increments usage counters', async () => {"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 204,
+    "line": 105,
     "text": "rejects writes above quota while GET remains free",
     "context": "test('rejects writes above quota while GET remains free', async () => {"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 213,
+    "line": 114,
     "text": "QUOTA_EXCEEDED",
     "context": "expect(limitedResponse.body).toMatchObject({ code: 'QUOTA_EXCEEDED' });"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 223,
+    "line": 124,
     "text": "idempotent writes are only billed once",
     "context": "test('idempotent writes are only billed once', async () => {"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 226,
+    "line": 127,
     "text": "Idempotency-Key",
     "context": "const headers = { 'Idempotency-Key': 'idem-123' };"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 239,
+    "line": 140,
+    "text": "parallel writes with unique idempotency keys increment once per request",
+    "context": "test('parallel writes with unique idempotency keys increment once per request', async () => {"
+  },
+  {
+    "file": "__tests__/billing.integration.test.mjs",
+    "line": 151,
+    "text": "Idempotency-Key",
+    "context": ".set('Idempotency-Key', `parallel-${index}`)"
+  },
+  {
+    "file": "__tests__/billing.integration.test.mjs",
+    "line": 165,
+    "text": "parallel writes sharing an idempotency key are billed once",
+    "context": "test('parallel writes sharing an idempotency key are billed once', async () => {"
+  },
+  {
+    "file": "__tests__/billing.integration.test.mjs",
+    "line": 171,
+    "text": "Idempotency-Key",
+    "context": "const headers = { 'Idempotency-Key': 'parallel-shared' };"
+  },
+  {
+    "file": "__tests__/billing.integration.test.mjs",
+    "line": 186,
     "text": "analytics aggregates real usage data per tenant",
     "context": "test('analytics aggregates real usage data per tenant', async () => {"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 245,
+    "line": 192,
     "text": "POST",
     "context": "await db.query(insertEventSql, ['tenant-a', '/write', 'POST', 200, 'req-1', { duration_ms: 45 }]);"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 246,
+    "line": 193,
     "text": "POST",
     "context": "await db.query(insertEventSql, ['tenant-a', '/write', 'POST', 204, 'req-2', { duration_ms: 60 }]);"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 247,
+    "line": 194,
     "text": "POST",
     "context": "await db.query(insertEventSql, ['tenant-a', '/write-error', 'POST', 500, 'req-3', { duration_ms: 120 }]);"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 248,
+    "line": 195,
     "text": "POST",
     "context": "await db.query(insertEventSql, ['tenant-b', '/write', 'POST', 200, 'req-4', { duration_ms: 80 }]);"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 265,
+    "line": 212,
     "text": "usage tracking is isolated per tenant",
     "context": "test('usage tracking is isolated per tenant', async () => {"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 268,
+    "line": 215,
     "text": "X-Tenant-Id",
     "context": "await request(app).post('/write').set('X-Tenant-Id', 'tenant-a').send({});"
   },
   {
     "file": "__tests__/billing.integration.test.mjs",
-    "line": 270,
+    "line": 217,
     "text": "X-Tenant-Id",
     "context": "await request(app).post('/write').set('X-Tenant-Id', 'tenant-b').send({});"
   },
@@ -190,6 +232,18 @@
     "line": 97,
     "text": "incrementUsageAtomic enforces limits before incrementing",
     "context": "test('incrementUsageAtomic enforces limits before incrementing', async () => {"
+  },
+  {
+    "file": "__tests__/fixtures/analytics.expected.mjs",
+    "line": 0,
+    "text": "<no user-facing text detected>",
+    "context": "auto-generated placeholder"
+  },
+  {
+    "file": "__tests__/helpers/analytics.mjs",
+    "line": 0,
+    "text": "<no user-facing text detected>",
+    "context": "auto-generated placeholder"
   },
   {
     "file": "__tests__/helpers/mock-db.mjs",
@@ -2095,79 +2149,115 @@
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 15,
+    "line": 21,
     "text": "SELECT pg_try_advisory_lock($1::bigint) AS locked",
     "context": "const { rows } = await client.query('SELECT pg_try_advisory_lock($1::bigint) AS locked', [ADVISORY_LOCK_KEY.toString()]);"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 18,
+    "line": 24,
     "text": "[purge] Unable to obtain advisory lock. Another instance may be running.",
     "context": "console.warn('[purge] Unable to obtain advisory lock. Another instance may be running.');"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 25,
+    "line": 31,
     "text": "SELECT pg_advisory_unlock($1::bigint)",
     "context": "await client.query('SELECT pg_advisory_unlock($1::bigint)', [ADVISORY_LOCK_KEY.toString()]);"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 27,
+    "line": 33,
     "text": "[purge] Failed to release advisory lock.",
     "context": "console.warn('[purge] Failed to release advisory lock.', error);"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 32,
+    "line": 38,
     "text": "SELECT to_regclass($1) AS table_name",
     "context": "const { rows } = await client.query('SELECT to_regclass($1) AS table_name', [tableName]);"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 38,
+    "line": 47,
+    "text": "SELECT COUNT(*)::bigint AS count FROM api_events WHERE occurred_at < NOW() - INTERVAL \\'90 days\\'",
+    "context": "'SELECT COUNT(*)::bigint AS count FROM api_events WHERE occurred_at < NOW() - INTERVAL \\'90 days\\'',"
+  },
+  {
+    "file": "jobs/purge.mjs",
+    "line": 50,
+    "text": "[purge] DRY RUN: ${count} api_events rows older than 90 days would be removed.",
+    "context": "console.log(`[purge] DRY RUN: ${count} api_events rows older than 90 days would be removed.`);"
+  },
+  {
+    "file": "jobs/purge.mjs",
+    "line": 55,
     "text": "DELETE FROM api_events WHERE occurred_at < NOW() - INTERVAL \\'90 days\\'",
     "context": "'DELETE FROM api_events WHERE occurred_at < NOW() - INTERVAL \\'90 days\\'',"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 40,
+    "line": 57,
     "text": "[purge] Removed ${rowCount} api_events rows older than 90 days.",
     "context": "console.log(`[purge] Removed ${rowCount} api_events rows older than 90 days.`);"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 46,
+    "line": 65,
     "text": "[purge] Rollup purge disabled. Set ROLLUP_PURGE_ENABLED=1 to enable.",
     "context": "console.log('[purge] Rollup purge disabled. Set ROLLUP_PURGE_ENABLED=1 to enable.');"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 61,
+    "line": 80,
     "text": "[purge] No rollup tables found. Skipping rollup purge.",
     "context": "console.log('[purge] No rollup tables found. Skipping rollup purge.');"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 70,
+    "line": 90,
+    "text": "SELECT COUNT(*)::bigint AS count FROM api_events_rollup_hourly WHERE bucket_start < $1::timestamptz",
+    "context": "'SELECT COUNT(*)::bigint AS count FROM api_events_rollup_hourly WHERE bucket_start < $1::timestamptz',"
+  },
+  {
+    "file": "jobs/purge.mjs",
+    "line": 98,
+    "text": "SELECT COUNT(*)::bigint AS count FROM api_events_rollup_daily WHERE bucket_date < $1::date",
+    "context": "'SELECT COUNT(*)::bigint AS count FROM api_events_rollup_daily WHERE bucket_date < $1::date',"
+  },
+  {
+    "file": "jobs/purge.mjs",
+    "line": 104,
+    "text": "[purge] DRY RUN: ${hourlyDeleted} hourly and ${dailyDeleted} daily rollup rows older than 12 months would be removed.",
+    "context": "console.log(`[purge] DRY RUN: ${hourlyDeleted} hourly and ${dailyDeleted} daily rollup rows older than 12 months would be removed.`);"
+  },
+  {
+    "file": "jobs/purge.mjs",
+    "line": 110,
     "text": "DELETE FROM api_events_rollup_hourly WHERE bucket_start < $1::timestamptz",
     "context": "'DELETE FROM api_events_rollup_hourly WHERE bucket_start < $1::timestamptz',"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 78,
+    "line": 118,
     "text": "DELETE FROM api_events_rollup_daily WHERE bucket_date < $1::date",
     "context": "'DELETE FROM api_events_rollup_daily WHERE bucket_date < $1::date',"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 84,
+    "line": 124,
     "text": "[purge] Removed ${hourlyDeleted} hourly and ${dailyDeleted} daily rollup rows older than 12 months.",
     "context": "console.log(`[purge] Removed ${hourlyDeleted} hourly and ${dailyDeleted} daily rollup rows older than 12 months.`);"
   },
   {
     "file": "jobs/purge.mjs",
-    "line": 111,
+    "line": 133,
+    "text": "[purge] Dry run enabled. Database changes will be skipped.",
+    "context": "console.log('[purge] Dry run enabled. Database changes will be skipped.');"
+  },
+  {
+    "file": "jobs/purge.mjs",
+    "line": 156,
     "text": "[purge] Job failed:",
     "context": "console.error('[purge] Job failed:', error);"
   },
@@ -2498,38 +2588,38 @@
   {
     "file": "middleware/billing.js",
     "line": 455,
-    "text": "AUTH_REQUIRED",
-    "context": "return res.status(401).json({ code: 'AUTH_REQUIRED', message: 'X-API-Key header required.' });"
+    "text": "TENANT_MISSING",
+    "context": "return sendError(res, req, 403, 'TENANT_MISSING', 'Tenant context is required.');"
   },
   {
     "file": "middleware/billing.js",
     "line": 455,
-    "text": "X-API-Key header required.",
-    "context": "return res.status(401).json({ code: 'AUTH_REQUIRED', message: 'X-API-Key header required.' });"
+    "text": "Tenant context is required.",
+    "context": "return sendError(res, req, 403, 'TENANT_MISSING', 'Tenant context is required.');"
   },
   {
     "file": "middleware/billing.js",
     "line": 461,
-    "text": "INVALID_API_KEY",
-    "context": "return res.status(401).json({ code: 'INVALID_API_KEY', message: 'API key is not recognized.' });"
+    "text": "AUTHENTICATION_REQUIRED",
+    "context": "return sendError(res, req, 401, 'AUTHENTICATION_REQUIRED', 'Authentication required.');"
   },
   {
     "file": "middleware/billing.js",
     "line": 461,
-    "text": "API key is not recognized.",
-    "context": "return res.status(401).json({ code: 'INVALID_API_KEY', message: 'API key is not recognized.' });"
+    "text": "Authentication required.",
+    "context": "return sendError(res, req, 401, 'AUTHENTICATION_REQUIRED', 'Authentication required.');"
   },
   {
     "file": "middleware/billing.js",
     "line": 467,
-    "text": "TENANT_NOT_FOUND",
-    "context": "return res.status(404).json({ code: 'TENANT_NOT_FOUND', message: 'Tenant context could not be resolved.' });"
+    "text": "TENANT_MISSING",
+    "context": "return sendError(res, req, 403, 'TENANT_MISSING', 'Tenant context is required.');"
   },
   {
     "file": "middleware/billing.js",
     "line": 467,
-    "text": "Tenant context could not be resolved.",
-    "context": "return res.status(404).json({ code: 'TENANT_NOT_FOUND', message: 'Tenant context could not be resolved.' });"
+    "text": "Tenant context is required.",
+    "context": "return sendError(res, req, 403, 'TENANT_MISSING', 'Tenant context is required.');"
   },
   {
     "file": "middleware/billing.js",
@@ -2553,7 +2643,13 @@
     "file": "middleware/billing.js",
     "line": 491,
     "text": "TENANT_RESOLUTION_FAILED",
-    "context": "res.status(500).json({ code: 'TENANT_RESOLUTION_FAILED' });"
+    "context": "return sendError(res, req, 500, 'TENANT_RESOLUTION_FAILED', 'Tenant context could not be resolved.');"
+  },
+  {
+    "file": "middleware/billing.js",
+    "line": 491,
+    "text": "Tenant context could not be resolved.",
+    "context": "return sendError(res, req, 500, 'TENANT_RESOLUTION_FAILED', 'Tenant context could not be resolved.');"
   },
   {
     "file": "middleware/billing.js",
@@ -2950,6 +3046,192 @@
     "line": 172,
     "text": "POST",
     "context": "method: 'POST',"
+  },
+  {
+    "file": "package/scripts/lib/download-test-certs.js",
+    "line": 28,
+    "text": "Downloading test certificates...",
+    "context": "console.log(chalk.yellow('Downloading test certificates...'));"
+  },
+  {
+    "file": "package/scripts/lib/download-test-certs.js",
+    "line": 32,
+    "text": "Downloaded es256.pem",
+    "context": "console.log(chalk.yellow('Downloaded es256.pem'));"
+  },
+  {
+    "file": "package/scripts/lib/download-test-certs.js",
+    "line": 36,
+    "text": "Downloaded es256.pub",
+    "context": "console.log(chalk.yellow('Downloaded es256.pub'));"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 29,
+    "text": "ERROR: ${err}",
+    "context": "console.error(`ERROR: ${err}`);"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 42,
+    "text": "ENOENT",
+    "context": "if (err.code === 'ENOENT') {"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 53,
+    "text": "Detected",
+    "context": "console.debug('Detected', { arch, platform });"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 68,
+    "text": "Can not find binary for architecture: ${arch} and platform: ${platform}, attempting to build Rust",
+    "context": "`Can not find binary for architecture: ${arch} and platform: ${platform}, attempting to build Rust`,"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 75,
+    "text": "Checking for a release at: ${url}",
+    "context": "console.log(`Checking for a release at: ${url}`);"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 80,
+    "text": "Content-Length",
+    "context": "const totalSize = parseInt(res.headers.get('Content-Length'), 10);"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 88,
+    "text": "Downloading | {bar} | {value_formatted} / {total_formatted} ({percentage}%) | ETA: {eta}s",
+    "context": "'Downloading | {bar} | {value_formatted} / {total_formatted} ({percentage}%) | ETA: {eta}s',"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 114,
+    "text": "Downloaded to ${destPath}",
+    "context": "console.log(`Downloaded to ${destPath}`);"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 149,
+    "text": "rustc --version",
+    "context": "await Promise.all([pExec('rustc --version'), pExec('cargo --version')]);"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 149,
+    "text": "cargo --version",
+    "context": "await Promise.all([pExec('rustc --version'), pExec('cargo --version')]);"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 157,
+    "text": "🦀 Building Rust...",
+    "context": "console.log('🦀 Building Rust...');"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 160,
+    "text": "Cargo.toml",
+    "context": "const cargoPath = resolve(root, 'Cargo.toml');"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 164,
+    "text": "npx cargo-cp-artifact -nc \"${bindingsPath}\" -- cargo build --message-format=json-render-diagnostics --release --manifest-path=\"${cargoPath}\"",
+    "context": "`npx cargo-cp-artifact -nc \"${bindingsPath}\" -- cargo build --message-format=json-render-diagnostics --release --manifest-path=\"${cargoPath}\"`,"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 176,
+    "text": "Cargo.toml",
+    "context": "const cargoDistPath = resolve(distRoot, 'Cargo.toml');"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 184,
+    "text": "Skipping Rust build since C2PA_LIBRARY_PATH is set",
+    "context": "console.log('Skipping Rust build since C2PA_LIBRARY_PATH is set');"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 190,
+    "text": "Skipping prebuilt binary download since SKIP_BINARY_DOWNLOAD is set",
+    "context": "'Skipping prebuilt binary download since SKIP_BINARY_DOWNLOAD is set',"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 197,
+    "text": "Skipping Rust build since Rust and/or Cargo is not found",
+    "context": "console.warn('Skipping Rust build since Rust and/or Cargo is not found');"
+  },
+  {
+    "file": "package/scripts/postinstall.js",
+    "line": 208,
+    "text": "Skipping Rust build since SKIP_RUST_BUILD is set",
+    "context": "console.log('Skipping Rust build since SKIP_RUST_BUILD is set');"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 37,
+    "text": "X-Tenant-Id",
+    "context": "const tenantId = req.get('X-Tenant-Id') || 'tenant-a';"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 76,
+    "text": "--- Scenario: POST /write below limit ---",
+    "context": "console.log('--- Scenario: POST /write below limit ---');"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 79,
+    "text": "Response",
+    "context": "logJson('Response', {"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 84,
+    "text": "Usage counters",
+    "context": "logJson('Usage counters', {"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 89,
+    "text": "\\n--- Scenario: POST /write above limit ---",
+    "context": "console.log('\\n--- Scenario: POST /write above limit ---');"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 92,
+    "text": "Response",
+    "context": "logJson('Response', {"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 96,
+    "text": "Usage counters",
+    "context": "logJson('Usage counters', {"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 101,
+    "text": "\\n--- Scenario: GET /write while quota exceeded ---",
+    "context": "console.log('\\n--- Scenario: GET /write while quota exceeded ---');"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 104,
+    "text": "Response",
+    "context": "logJson('Response', {"
+  },
+  {
+    "file": "reports/scripts/run-billing-basic.mjs",
+    "line": 108,
+    "text": "Usage counters",
+    "context": "logJson('Usage counters', {"
   },
   {
     "file": "scripts/generate-i18n-coverage.mjs",
@@ -5772,6 +6054,12 @@
     "context": "const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>VideoKit Doğrulama Raporu</title><style>body{font-family:system-ui,sans-serif;margin:40px;color:#0f172a;}.header{display:flex;align-items:center;gap:12px;margin-bottom:24px}.logo{width:40px;height:40px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px}.title{font-size:24px;font-weight:700}.subtitle{font-size:14px;color:#64748b}.section{margin-top:28px;page-break-inside:avoid;}.section h3{margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:6px;}table{width:100%;border-collapse:collapse;font-size:14px;}td,th{padding:8px 12px;text-align:left;vertical-align:top;}.kv-table td{border-bottom:1px solid #f0f0f0;}.kv-table strong{color:#334155;}.details-table td{width:50%;border-bottom:1px solid #f0f0f0;}.codes-table{font-size:12px;}.codes-table th{background:#f6f8fa;}.codes-table td{border:1px solid #e5e7eb;}.codes-table code{font-family:monospace;background:#eef;padding:2px 4px;border-radius:4px;word-break:break-all;}.legal{font-size:12px;color:#6b7280;margin-top:40px;}@media print{body{margin:0}}</style></head><body onload=\"focus();print();setTimeout(()=>close(),600)\"><div class=\"header\"><div class=\"logo\">VK</div><div><div class=\"title\">VideoKit Doğrulama Raporu</div><div class=\"subtitle\">Content Credentials (C2PA) Doğrulama Çıktısı</div></div></div><div class=\"section\"><table class=\"kv-table\"><tr><td><strong>Dosya Adı</strong></td><td>${safe(report.file?.name)}</td></tr><tr><td><strong>Boyut</strong></td><td>${fmtSize(report.file?.size)}</td></tr><tr><td><strong>Genel Durum</strong></td><td><strong>${safe(report.verdict?.toUpperCase())}</strong></td></tr><tr><td><strong>Mesaj</strong></td><td>${safe(report.message)}</td></tr><tr><td><strong>Süre</strong></td><td>${report.ms!=null?report.ms+' ms':'—'}</td></tr><tr><td><strong>İmza Zamanı (UTC)</strong></td><td>${safe(report.summary?.time)}</td></tr><tr><td><strong>İmza Sahibi</strong></td><td>${safe(report.summary?.issuer)}</td></tr><tr><td><strong>Başlık</strong></td><td>${safe(report.summary?.title)}</td></tr><tr><td><strong>Yazılım</strong></td><td>${safe(report.summary?.claimGenerator)}</td></tr><tr><td><strong>Dosya Kimliği (SHA‑256)</strong></td><td style=\"font-family:monospace;word-break:break-all;\">${safe(report.fileHash)}</td></tr><tr><td><strong>Onay Tarihi (UTC)</strong></td><td>${approval}</td></tr></table></div>${getValidationDetailsHtml()}${getCodesTableHtml()}<div class=\"legal\">Bu rapor VideoKit tarafından otomatik olarak oluşturulmuştur ve yalnızca bilgilendirme amaçlıdır. Hukuki bir tavsiye niteliği taşımaz.<br><br>VideoKit markası ve logosu tescillidir. Tüm hakları saklıdır.</div></body></html>`;"
   },
   {
+    "file": "tools/ci-build.mjs",
+    "line": 23,
+    "text": "Build verification succeeded for ${requiredFiles.length} entry files.",
+    "context": "console.log(`Build verification succeeded for ${requiredFiles.length} entry files.`);"
+  },
+  {
     "file": "tools/eslint-rules/no-ui-literals.js",
     "line": 1,
     "text": "use strict",
@@ -5890,6 +6178,156 @@
     "line": 231,
     "text": "JSXAttribute",
     "context": "if (node.parent && node.parent.type === 'JSXAttribute') {"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 17,
+    "text": ".header-content h1[data-i18n=\"portal_title\"]",
+    "context": "selector: '.header-content h1[data-i18n=\"portal_title\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 22,
+    "text": "nav a[data-i18n=\"nav_dashboard\"]",
+    "context": "selector: 'nav a[data-i18n=\"nav_dashboard\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 32,
+    "text": "#login-view h2[data-i18n=\"login_title\"]",
+    "context": "selector: '#login-view h2[data-i18n=\"login_title\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 37,
+    "text": "#login-view p[data-i18n=\"login_prompt_new\"]",
+    "context": "selector: '#login-view p[data-i18n=\"login_prompt_new\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 42,
+    "text": "#login-form label[for=\"login-email\"]",
+    "context": "selector: '#login-form label[for=\"login-email\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 47,
+    "text": "#login-form label[for=\"login-password\"]",
+    "context": "selector: '#login-form label[for=\"login-password\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 52,
+    "text": "#login-form button[data-i18n=\"login_button\"]",
+    "context": "selector: '#login-form button[data-i18n=\"login_button\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 57,
+    "text": "#login-view a[data-i18n=\"forgot_password_link\"]",
+    "context": "selector: '#login-view a[data-i18n=\"forgot_password_link\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 62,
+    "text": "#login-view a[data-i18n=\"go_to_register_link\"]",
+    "context": "selector: '#login-view a[data-i18n=\"go_to_register_link\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 67,
+    "text": "#register-view h2[data-i18n=\"register_title\"]",
+    "context": "selector: '#register-view h2[data-i18n=\"register_title\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 72,
+    "text": "#register-view p[data-i18n=\"register_prompt\"]",
+    "context": "selector: '#register-view p[data-i18n=\"register_prompt\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 77,
+    "text": "#register-form button[data-i18n=\"register_button\"]",
+    "context": "selector: '#register-form button[data-i18n=\"register_button\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 82,
+    "text": "#register-view a[data-i18n=\"go_to_login_link\"]",
+    "context": "selector: '#register-view a[data-i18n=\"go_to_login_link\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 87,
+    "text": "#forgot-password-view h2[data-i18n=\"forgot_password_title\"]",
+    "context": "selector: '#forgot-password-view h2[data-i18n=\"forgot_password_title\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 92,
+    "text": "#forgot-password-view p[data-i18n=\"forgot_password_prompt\"]",
+    "context": "selector: '#forgot-password-view p[data-i18n=\"forgot_password_prompt\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 97,
+    "text": "#forgot-password-form button[data-i18n=\"send_reset_link_button\"]",
+    "context": "selector: '#forgot-password-form button[data-i18n=\"send_reset_link_button\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 102,
+    "text": "#reset-password-view h2[data-i18n=\"reset_password_title\"]",
+    "context": "selector: '#reset-password-view h2[data-i18n=\"reset_password_title\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 107,
+    "text": "#reset-password-view p[data-i18n=\"reset_password_prompt\"]",
+    "context": "selector: '#reset-password-view p[data-i18n=\"reset_password_prompt\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 112,
+    "text": "#reset-password-form button[data-i18n=\"update_password_button\"]",
+    "context": "selector: '#reset-password-form button[data-i18n=\"update_password_button\"]',"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 117,
+    "text": ": String(value).replace(/\\s+/g,",
+    "context": "value == null ? '' : String(value).replace(/\\s+/g, ' ').trim();"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 150,
+    "text": "Element not found",
+    "context": "message = 'Element not found';"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 153,
+    "text": "Missing translation value",
+    "context": "message = 'Missing translation value';"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 159,
+    "text": "Text content mismatch",
+    "context": "message = 'Text content mismatch';"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 194,
+    "text": "Spot check failed for ${summary.failed} keys.",
+    "context": "console.error(`Spot check failed for ${summary.failed} keys.`);"
+  },
+  {
+    "file": "tools/i18n-spotcheck.mjs",
+    "line": 199,
+    "text": "Spot check passed for ${summary.passed}/${summary.total} keys. Report written to ${outputPath}.",
+    "context": "`Spot check passed for ${summary.passed}/${summary.total} keys. Report written to ${outputPath}.`,"
   },
   {
     "file": "tools/run-i18n-audit.mjs",
@@ -8180,7 +8618,7 @@
   {
     "file": "__summary__",
     "line": 0,
-    "text": "Total lines: 11600; Files scanned: 43",
+    "text": "Total lines: 12413; Files scanned: 51",
     "context": "scan summary"
   }
 ]

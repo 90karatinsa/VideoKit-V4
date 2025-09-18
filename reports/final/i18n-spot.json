@@ -1,0 +1,191 @@
+{
+  "summary": {
+    "locale": "tr",
+    "total": 20,
+    "passed": 20,
+    "failed": 0,
+    "timestamp": "2025-09-18T20:16:53.346Z"
+  },
+  "results": [
+    {
+      "key": "portal_title",
+      "file": "index.html",
+      "selector": ".header-content h1[data-i18n=\"portal_title\"]",
+      "expected": "VideoKit Müşteri Portalı",
+      "actual": "VideoKit Müşteri Portalı",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "nav_dashboard",
+      "file": "index.html",
+      "selector": "nav a[data-i18n=\"nav_dashboard\"]",
+      "expected": "Panel",
+      "actual": "Panel",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "language_switcher_label",
+      "file": "index.html",
+      "selector": "label[for=\"lang-switcher\"]",
+      "expected": "Dil seçimi",
+      "actual": "Dil seçimi",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "login_title",
+      "file": "index.html",
+      "selector": "#login-view h2[data-i18n=\"login_title\"]",
+      "expected": "Giriş Yap",
+      "actual": "Giriş Yap",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "login_prompt_new",
+      "file": "index.html",
+      "selector": "#login-view p[data-i18n=\"login_prompt_new\"]",
+      "expected": "Hesabınıza erişmek için giriş yapın.",
+      "actual": "Hesabınıza erişmek için giriş yapın.",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "email_label",
+      "file": "index.html",
+      "selector": "#login-form label[for=\"login-email\"]",
+      "expected": "E-posta Adresi",
+      "actual": "E-posta Adresi",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "password_label",
+      "file": "index.html",
+      "selector": "#login-form label[for=\"login-password\"]",
+      "expected": "Şifre",
+      "actual": "Şifre",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "login_button",
+      "file": "index.html",
+      "selector": "#login-form button[data-i18n=\"login_button\"]",
+      "expected": "Giriş Yap",
+      "actual": "Giriş Yap",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "forgot_password_link",
+      "file": "index.html",
+      "selector": "#login-view a[data-i18n=\"forgot_password_link\"]",
+      "expected": "Şifrenizi mi unuttunuz?",
+      "actual": "Şifrenizi mi unuttunuz?",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "go_to_register_link",
+      "file": "index.html",
+      "selector": "#login-view a[data-i18n=\"go_to_register_link\"]",
+      "expected": "Hesabınız yok mu? Kaydolun.",
+      "actual": "Hesabınız yok mu? Kaydolun.",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "register_title",
+      "file": "index.html",
+      "selector": "#register-view h2[data-i18n=\"register_title\"]",
+      "expected": "Yeni Hesap Oluştur",
+      "actual": "Yeni Hesap Oluştur",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "register_prompt",
+      "file": "index.html",
+      "selector": "#register-view p[data-i18n=\"register_prompt\"]",
+      "expected": "Platformu denemek için yeni bir hesap oluşturun.",
+      "actual": "Platformu denemek için yeni bir hesap oluşturun.",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "register_button",
+      "file": "index.html",
+      "selector": "#register-form button[data-i18n=\"register_button\"]",
+      "expected": "Kaydol",
+      "actual": "Kaydol",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "go_to_login_link",
+      "file": "index.html",
+      "selector": "#register-view a[data-i18n=\"go_to_login_link\"]",
+      "expected": "Zaten bir hesabınız var mı? Giriş yapın.",
+      "actual": "Zaten bir hesabınız var mı? Giriş yapın.",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "forgot_password_title",
+      "file": "index.html",
+      "selector": "#forgot-password-view h2[data-i18n=\"forgot_password_title\"]",
+      "expected": "Şifremi Unuttum",
+      "actual": "Şifremi Unuttum",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "forgot_password_prompt",
+      "file": "index.html",
+      "selector": "#forgot-password-view p[data-i18n=\"forgot_password_prompt\"]",
+      "expected": "Şifre sıfırlama linki göndermek için e-posta adresinizi girin.",
+      "actual": "Şifre sıfırlama linki göndermek için e-posta adresinizi girin.",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "send_reset_link_button",
+      "file": "index.html",
+      "selector": "#forgot-password-form button[data-i18n=\"send_reset_link_button\"]",
+      "expected": "Sıfırlama Linki Gönder",
+      "actual": "Sıfırlama Linki Gönder",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "reset_password_title",
+      "file": "index.html",
+      "selector": "#reset-password-view h2[data-i18n=\"reset_password_title\"]",
+      "expected": "Yeni Şifre Oluştur",
+      "actual": "Yeni Şifre Oluştur",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "reset_password_prompt",
+      "file": "index.html",
+      "selector": "#reset-password-view p[data-i18n=\"reset_password_prompt\"]",
+      "expected": "Lütfen yeni şifrenizi girin. En az 8 karakter olmalıdır.",
+      "actual": "Lütfen yeni şifrenizi girin. En az 8 karakter olmalıdır.",
+      "status": "pass",
+      "message": ""
+    },
+    {
+      "key": "update_password_button",
+      "file": "index.html",
+      "selector": "#reset-password-form button[data-i18n=\"update_password_button\"]",
+      "expected": "Şifreyi Güncelle",
+      "actual": "Şifreyi Güncelle",
+      "status": "pass",
+      "message": ""
+    }
+  ]
+}
