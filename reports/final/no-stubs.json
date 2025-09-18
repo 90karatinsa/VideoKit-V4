@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2025-09-18T20:31:57.835Z",
+  "root": "/workspace/VideoKit-V4",
+  "keywords": [
+    {
+      "keyword": "TODO",
+      "regex": "/\\bTODO\\b/"
+    },
+    {
+      "keyword": "FIXME",
+      "regex": "/\\bFIXME\\b/"
+    },
+    {
+      "keyword": "mock",
+      "regex": "/\\bmock\\b/i"
+    },
+    {
+      "keyword": "fake",
+      "regex": "/\\bfake\\b/i"
+    },
+    {
+      "keyword": "stub",
+      "regex": "/\\bstub\\b/i"
+    },
+    {
+      "keyword": "random",
+      "regex": "/\\brandom\\b/i"
+    }
+  ],
+  "summary": {
+    "totalFilesWithFindings": 0,
+    "totalFindings": 0
+  },
+  "issues": [],
+  "status": "ok"
+}
