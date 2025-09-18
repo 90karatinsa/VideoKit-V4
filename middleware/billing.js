@@ -7,6 +7,7 @@ const OPERATIONS = [
   { method: 'POST', pattern: /^\/verify$/i, name: '/verify', weight: 1 },
   { method: 'POST', pattern: /^\/stamp$/i, name: '/stamp', weight: 5 },
   { method: 'POST', pattern: /^\/batch\/upload$/i, name: '/batch/upload', weight: 10 },
+  { method: 'GET', pattern: /^\/management\/tenants$/i, name: '/management/tenants', billable: false },
   { method: 'POST', pattern: /^\/management\/keys$/i, name: '/management/keys', billable: false },
   {
     method: 'DELETE',

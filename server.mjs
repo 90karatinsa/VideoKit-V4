@@ -920,6 +920,28 @@ app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res
 
 // === PORTAL İÇİN YÖNETİM ENDPOINT'LERİ (OTURUM VE ROL KORUMALI) ===
 
+// Yönetim paneli için tenant listesini döner.
+app.get('/management/tenants', protect, authorize('admin'), async (req, res) => {
+    try {
+        const result = await dbPool.query(
+            `SELECT id, name, plan_id, created_at, updated_at FROM tenants ORDER BY created_at DESC`
+        );
+
+        const tenants = result.rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            planId: row.plan_id,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        }));
+
+        res.status(200).json({ tenants });
+    } catch (error) {
+        req.log?.error?.({ err: error }, '[Mgmt] Tenant listesi alınamadı.');
+        return sendError(res, req, 500, 'TENANT_LIST_FAILED', 'Tenant listesi getirilemedi.');
+    }
+});
+
 // Bu endpoint artık kullanılmıyor, kayıt /auth/register üzerinden yapılıyor.
 // İstenirse admin paneli için yeniden düzenlenebilir.
 app.post('/management/tenants', protect, authorize('admin'), async (req, res) => {
