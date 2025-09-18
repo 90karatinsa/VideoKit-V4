@@ -13,7 +13,13 @@
     "seed:sandbox": "node seed-db.js --sandbox",
     "reset:sandbox": "docker-compose -f docker-compose.sandbox.yml down -v && npm run seed:sandbox && docker-compose -f docker-compose.sandbox.yml up -d --build",
     "migrate": "node-pg-migrate",
-    "test:email": "node -r dotenv/config test-email.js"
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down",
+    "test:email": "node -r dotenv/config test-email.js",
+    "job:flush-usage": "node jobs/flush-usage.mjs",
+    "job:rollup-analytics": "node jobs/rollup-analytics.mjs",
+    "job:purge": "node jobs/purge.mjs",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
     "@contentauth/toolkit": "^0.13.12",
@@ -48,10 +54,27 @@
     "pino-http": "^10.1.0",
     "prom-client": "^15.1.2",
     "uuid": "^13.0.0",
-    "ws": "^8.17.0"
+    "ws": "^8.17.0",
+    "zod": "^4.1.9"
   },
   "author": "VideoKit Engineering",
   "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "@playwright/test": "^1.46.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "moduleFileExtensions": [
+      "js",
+      "mjs"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.mjs"
+    ]
+  },
   "overrides": {
     "@opentelemetry/api": "1.9.0",
     "@opentelemetry/semantic-conventions": "1.28.0",

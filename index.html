@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VideoKit Müşteri Portalı</title>
+    <title data-i18n="portal_title">VideoKit Müşteri Portalı</title>
     <link rel="stylesheet" href="style.css">
     <script src="app.js" defer></script>
 </head>
@@ -21,10 +21,11 @@
             <div class="language-selector">
                 <label for="lang-switcher" class="sr-only" data-i18n="language_switcher_label">Dil seçimi</label>
                 <select id="lang-switcher">
-                    <option value="tr">Türkçe</option>
-                    <option value="en">English</option>
-                    <option value="de">Deutsch</option>
-                    <option value="es">Español</option>
+                    <option value="tr" data-i18n="language_option_tr">Türkçe</option>
+                    <option value="en" data-i18n="language_option_en">English</option>
+                    <option value="de" data-i18n="language_option_de">Deutsch</option>
+                    <option value="es" data-i18n="language_option_es">Español</option>
+                    <option value="en-XA" data-i18n="language_option_en_xa">Pseudo-Locale (QA)</option>
                 </select>
             </div>
         </div>
@@ -32,6 +33,13 @@
 
     <main class="app-main">
         <div class="view-stack">
+            <div id="quota-banner" class="quota-banner" hidden>
+                <div class="quota-banner__icon" aria-hidden="true">!</div>
+                <div class="quota-banner__content">
+                    <strong class="quota-banner__title" data-i18n="quota_banner_title"></strong>
+                    <p id="quota-banner-message" class="quota-banner__message"></p>
+                </div>
+            </div>
             <section id="login-view" class="view view--auth">
                 <article class="card card--form">
                     <h2 data-i18n="login_title">Giriş Yap</h2>

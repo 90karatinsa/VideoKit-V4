@@ -1,5 +1,7 @@
 import { t } from '../i18n.js';
 
+import { sendError } from './http-error.js';
+
 const createRateLimiter = (redis, plans) => async (req, res, next) => {
   if (!req.tenant || !req.tenant.plan) return next();
 
@@ -18,7 +20,7 @@ const createRateLimiter = (redis, plans) => async (req, res, next) => {
   res.set('X-RateLimit-Remaining', Math.max(0, plan.rateLimitPerMinute - current));
 
   if (current > plan.rateLimitPerMinute) {
-    return res.status(429).json({ error: 'Too Many Requests: Rate limit exceeded.' });
+    return sendError(res, req, 429, 'RATE_LIMIT_EXCEEDED', 'Too Many Requests: Rate limit exceeded.');
   }
 
   next();
@@ -31,7 +33,7 @@ export const createBillingMiddleware = (dbPool, redis, plans) => {
     try {
       if (req.query?.apiKey) {
         req.log?.warn?.({ url: req.originalUrl }, '[billing] API key provided via query string rejected.');
-        return res.status(400).json({ error: 'API keys must be sent using the X-API-Key header.' });
+        return sendError(res, req, 400, 'API_KEY_HEADER_REQUIRED', 'API keys must be sent using the X-API-Key header.');
       }
 
       let tenantContext = req.tenant ?? null;
@@ -43,26 +45,26 @@ export const createBillingMiddleware = (dbPool, redis, plans) => {
             [req.user.tenantId],
           );
           if (tenantResult.rowCount === 0) {
-            return res.status(404).json({ error: 'Oturuma bağlı kiracı bulunamadı.' });
+            return sendError(res, req, 404, 'SESSION_TENANT_NOT_FOUND', 'Oturuma bağlı kiracı bulunamadı.');
           }
           tenantContext = tenantResult.rows[0];
         }
       } else {
         const apiKey = req.get('X-API-Key');
         if (!apiKey) {
-          return res.status(401).json({ error: 'Unauthorized: API key is missing.' });
+          return sendError(res, req, 401, 'API_KEY_MISSING', 'Unauthorized: API key is missing.');
         }
 
         const tenantId = await redis.get(`api_key:${apiKey}`);
         if (!tenantId) {
-          return res.status(401).json({ error: 'Unauthorized: Invalid API key.' });
+          return sendError(res, req, 401, 'API_KEY_INVALID', 'Unauthorized: Invalid API key.');
         }
 
         let tenantData = await redis.hgetall(`tenant:${tenantId}`);
         if (!tenantData || !tenantData.plan) {
           const tenantResult = await dbPool.query('SELECT id, name, plan FROM tenants WHERE id = $1', [tenantId]);
           if (tenantResult.rowCount === 0) {
-            return res.status(404).json({ error: 'API anahtarına bağlı kiracı bulunamadı.' });
+            return sendError(res, req, 404, 'API_KEY_TENANT_NOT_FOUND', 'API anahtarına bağlı kiracı bulunamadı.');
           }
           tenantData = tenantResult.rows[0];
           await redis.hset(`tenant:${tenantId}`, {
@@ -87,7 +89,7 @@ export const createBillingMiddleware = (dbPool, redis, plans) => {
 
       const plan = plans[req.tenant.plan];
       if (!plan) {
-        return res.status(500).json({ error: 'Server configuration error: Tenant plan is invalid.' });
+        return sendError(res, req, 500, 'TENANT_PLAN_INVALID', 'Server configuration error: Tenant plan is invalid.');
       }
 
       if (plan.monthlyQuota === null) {
@@ -100,7 +102,7 @@ export const createBillingMiddleware = (dbPool, redis, plans) => {
         if (credits <= 0) {
           res.set('X-Credits-Remaining', '0');
           if (req.method !== 'GET') {
-            return res.status(402).json({ error: 'Payment Required: You have run out of credits.' });
+            return sendError(res, req, 402, 'CREDITS_EXHAUSTED', 'Payment Required: You have run out of credits.');
           }
         } else if (req.method !== 'GET') {
           const remainingCredits = await redis.decr(`credits:${req.tenant.id}`);
@@ -120,7 +122,7 @@ export const createBillingMiddleware = (dbPool, redis, plans) => {
           res.set('X-Quota-Limit', plan.monthlyQuota);
           res.set('X-Quota-Remaining', 0);
           if (req.method !== 'GET') {
-            return res.status(429).json({ error: 'Too Many Requests: Monthly quota exceeded.' });
+            return sendError(res, req, 429, 'MONTHLY_QUOTA_EXCEEDED', 'Too Many Requests: Monthly quota exceeded.');
           }
         } else {
           if (req.method !== 'GET') {
@@ -140,7 +142,7 @@ export const createBillingMiddleware = (dbPool, redis, plans) => {
       return rateLimiter(req, res, next);
     } catch (error) {
       req.log?.error?.({ err: error }, '[billing] Middleware failure');
-      return res.status(500).json({ error: t('error_generic_server', req.lang) || 'Internal Server Error' });
+      return sendError(res, req, 500, 'BILLING_MIDDLEWARE_FAILURE', t('error_generic_server', req.lang) || 'Internal Server Error');
     }
   };
 };

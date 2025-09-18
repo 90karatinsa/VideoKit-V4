@@ -18,7 +18,6 @@ import { fileURLToPath } from 'url';
 import promClient from 'prom-client';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
-import { randomUUID } from 'crypto';
 import pg from 'pg';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -31,6 +30,8 @@ import *as audit from './videokit-audit.js';
 import { initI18n, getLang, t } from './i18n.js';
 import createAuthRouter from './routes/auth.js';
 import { create } from "./shims/contentauth.mjs"; // c2pa create fonksiyonu için gerekli import
+import { normalizeEndpoint } from './src/core/endpoint-normalize.mjs';
+import { ensureRequestId, sendError } from './http-error.js';
 // === IMPORT BLOK SONU ===
 
 // --- İZLEME VE HATA BİLDİRİMİ BAŞLATMA ---
@@ -54,11 +55,7 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 const httpLogger = pinoHttp({
     logger,
     genReqId: function (req, res) {
-        const existingId = req.id ?? req.headers["x-request-id"] ?? req.headers["x-correlation-id"];
-        if (existingId) return existingId;
-        const id = randomUUID();
-        res.setHeader('X-Request-Id', id);
-        return id;
+        return ensureRequestId(req, res);
     },
 });
 
@@ -113,32 +110,117 @@ app.use(httpLogger);
 const collectDefaultMetrics = promClient.collectDefaultMetrics;
 collectDefaultMetrics({ prefix: 'videokit_api_' });
 
-const httpRequestDurationMicroseconds = new promClient.Histogram({
-    name: 'videokit_api_http_request_duration_ms',
-    help: 'API isteklerinin milisaniye cinsinden süresi',
-    labelNames: ['method', 'route', 'code'],
-    buckets: [50, 100, 200, 300, 500, 1000, 2500]
-});
+const register = promClient.register;
 
-const httpRequestsTotal = new promClient.Counter({
-    name: 'videokit_api_http_requests_total',
-    help: 'Alınan toplam HTTP istek sayısı',
-    labelNames: ['method', 'route', 'code']
-});
+const getOrCreateMetric = (name, factory) => {
+    const existing = register.getSingleMetric(name);
+    if (existing) {
+        return existing;
+    }
+    return factory();
+};
+
+const httpRequestDurationHistogram = getOrCreateMetric('http_request_duration_ms', () => new promClient.Histogram({
+    name: 'http_request_duration_ms',
+    help: 'HTTP isteklerinin milisaniye cinsinden süresi.',
+    labelNames: ['method', 'path', 'tenant'],
+    buckets: [50, 100, 200, 300, 500, 1000, 2500]
+}));
+
+const httpRequestsTotal = getOrCreateMetric('http_requests_total', () => new promClient.Counter({
+    name: 'http_requests_total',
+    help: 'HTTP istekleri toplam sayısı.',
+    labelNames: ['method', 'path', 'tenant', 'status']
+}));
+
+const httpErrorsTotal = getOrCreateMetric('http_errors_total', () => new promClient.Counter({
+    name: 'http_errors_total',
+    help: 'HTTP hatalarının toplam sayısı.',
+    labelNames: ['status']
+}));
+
+const DEFAULT_TENANT_LABEL = 'unknown';
+
+const resolveTenantLabel = (req) => {
+    const tenantId = req.tenant?.id;
+    if (typeof tenantId === 'string' && tenantId.trim().length > 0) {
+        return tenantId;
+    }
+    return DEFAULT_TENANT_LABEL;
+};
+
+const resolvePathLabel = (req) => {
+    const base = typeof req.baseUrl === 'string' ? req.baseUrl : '';
+    const rawRoute = req.route?.path;
+
+    const normalize = (value) => {
+        if (!value) {
+            return null;
+        }
+        if (typeof value === 'string') {
+            return value;
+        }
+        if (Array.isArray(value) && value.length > 0) {
+            return value[0];
+        }
+        if (value instanceof RegExp) {
+            return value.source;
+        }
+        return String(value);
+    };
+
+    const routePath = normalize(rawRoute);
+    if (routePath) {
+        const combined = `${base}${routePath}`;
+        return combined || '/';
+    }
+
+    const fallback = req.originalUrl || req.url || req.path;
+    if (typeof fallback === 'string' && fallback.length > 0) {
+        const withoutQuery = fallback.split('?')[0];
+        return withoutQuery || '/';
+    }
+
+    return '/';
+};
 
 app.use((req, res, next) => {
     req.lang = getLang(req);
 
     const pathsToSkip = ['/metrics', '/healthz', '/readyz', '/uploads'];
-    if (pathsToSkip.some(path => req.path.startsWith(path))) {
+    const currentPath = typeof req.path === 'string' ? req.path : '';
+    if (pathsToSkip.some(path => currentPath.startsWith(path))) {
         return next();
     }
 
-    const end = httpRequestDurationMicroseconds.startTimer();
+    const startHighRes = typeof process?.hrtime?.bigint === 'function' ? process.hrtime.bigint() : null;
+    const startTime = startHighRes ?? Date.now();
     res.on('finish', () => {
-        const route = req.route ? req.route.path : 'unknown_route';
-        end({ route, code: res.statusCode, method: req.method });
-        httpRequestsTotal.inc({ route, code: res.statusCode, method: req.method });
+        const method = (req.method || 'UNKNOWN').toUpperCase();
+        const status = res.statusCode;
+        const tenant = resolveTenantLabel(req);
+        const pathLabel = resolvePathLabel(req);
+
+        const durationMs = startHighRes
+            ? Number(process.hrtime.bigint() - startHighRes) / 1e6
+            : Math.max(0, Date.now() - startTime);
+
+        httpRequestsTotal.inc({
+            method,
+            path: pathLabel,
+            tenant,
+            status: String(status),
+        });
+
+        httpRequestDurationHistogram.observe({
+            method,
+            path: pathLabel,
+            tenant,
+        }, durationMs);
+
+        if (status >= 400) {
+            httpErrorsTotal.inc({ status: String(status) });
+        }
     });
     next();
 });
@@ -333,7 +415,70 @@ const plans = {
 // --- Auth & Billing Middleware ---
 const authMiddleware = createAuthMiddleware({ dbPool, config });
 const { protect, authorize } = authMiddleware;
-const billingMiddleware = createBillingMiddleware(dbPool, redisConnection, plans);
+const readRateLimits = Object.fromEntries(
+    Object.entries(plans)
+        .map(([planId, plan]) => [planId, plan.rateLimitPerMinute])
+        .filter(([, limit]) => Number.isFinite(limit) && limit > 0),
+);
+const billingMiddleware = createBillingMiddleware({
+    dbPool,
+    redis: redisConnection,
+    logger,
+    readRateLimits,
+});
+const [resolveTenant, startTimer, enforceQuota, finalizeAndLog] = billingMiddleware;
+const rateLimitRead = typeof billingMiddleware.rateLimitRead === 'function'
+    ? billingMiddleware.rateLimitRead
+    : null;
+
+const attachFinalizeOnce = (req, res) => {
+    if (req.billing?.__billingFinalizeAttached) {
+        return;
+    }
+
+    finalizeAndLog(req, res);
+
+    if (!req.billing) {
+        req.billing = {};
+    }
+
+    req.billing.__billingFinalizeAttached = true;
+};
+
+const resolveTenantWithFinalize = (req, res, next) => {
+    attachFinalizeOnce(req, res);
+    return resolveTenant(req, res, next);
+};
+
+const baseBillingChain = [resolveTenantWithFinalize, startTimer];
+const billingReadChain = rateLimitRead
+    ? [...baseBillingChain, rateLimitRead]
+    : [...baseBillingChain];
+const billingWriteChain = [...baseBillingChain, enforceQuota];
+
+const withFinalize = (handler) => async (req, res, next) => {
+    attachFinalizeOnce(req, res);
+
+    try {
+        await handler(req, res, next);
+    } catch (error) {
+        return next(error);
+    }
+
+    return next();
+};
+
+const finalizeAfter = (req, res, next) => {
+    if (req.billing?.__billingFinalizeAttached) {
+        return next();
+    }
+
+    finalizeAndLog(req, res, next);
+
+    if (req.billing) {
+        req.billing.__billingFinalizeAttached = true;
+    }
+};
 
 const hashApiKey = (apiKey) => crypto.createHash('sha256').update(apiKey).digest('hex');
 
@@ -443,7 +588,7 @@ const idempotencyHandler = async (req, res, next) => {
         const lock = await redisConnection.set(redisKey, JSON.stringify({ status: 'in_progress' }), 'EX', 300, 'NX');
         if (!lock) {
             req.log.warn({ idempotencyKey }, `[Idempotency] Çakışma tespit edildi.`);
-            return res.status(409).json({ error: t('error_idempotency_conflict', req.lang) });
+            return sendError(res, req, 409, 'IDEMPOTENCY_CONFLICT', t('error_idempotency_conflict', req.lang));
         }
         const originalSend = res.send.bind(res);
         res.send = (body) => {
@@ -480,9 +625,9 @@ const authRouter = createAuthRouter({
 
 app.use('/auth', authRouter);
 
-app.post('/verify', protect, billingMiddleware, fileUpload.single('file'), async (req, res) => {
+app.post('/verify', protect, ...billingWriteChain, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
+        return sendError(res, req, 400, 'FILE_NOT_UPLOADED', t('error_file_not_uploaded', req.lang));
     }
     const { webhookUrl, webhookSecret } = req.body;
     req.log.info({ file: req.file.originalname, size: req.file.size, webhook: !!webhookUrl }, `[/verify] İstek alındı`);
@@ -502,25 +647,25 @@ app.post('/verify', protect, billingMiddleware, fileUpload.single('file'), async
         res.status(202).json({ jobId: job.id });
     } catch (error) {
         req.log.error({ err: error }, '[/verify] İş kuyruğa eklenirken hata oluştu');
-        res.status(500).json({ error: t('error_job_creation_failed', req.lang) });
+        return sendError(res, req, 500, 'JOB_CREATION_FAILED', t('error_job_creation_failed', req.lang));
     } finally {
         if (!jobQueued) {
             await cleanupUploadedFile(req.file);
         }
     }
-});
+}), finalizeAfter);
 
-app.get('/jobs/:jobId', protect, billingMiddleware, async (req, res) => {
+app.get('/jobs/:jobId', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const { jobId } = req.params;
     const job = await verifyQueue.getJob(jobId);
 
     if (!job) {
-        return res.status(404).json({ error: t('error_job_not_found', req.lang) });
+        return sendError(res, req, 404, 'JOB_NOT_FOUND', t('error_job_not_found', req.lang));
     }
 
     if (job.data.tenantId !== req.tenant.id) {
         req.log.warn({ tenantId: req.tenant.id, jobOwner: job.data.tenantId, jobId }, `[AUTH] Yetkisiz iş erişimi denemesi.`);
-        return res.status(403).json({ error: t('error_forbidden_job_access', req.lang) });
+        return sendError(res, req, 403, 'FORBIDDEN_JOB_ACCESS', t('error_forbidden_job_access', req.lang));
     }
 
     const state = await job.getState();
@@ -531,15 +676,15 @@ app.get('/jobs/:jobId', protect, billingMiddleware, async (req, res) => {
         response.error = job.failedReason;
     }
     res.status(200).json(response);
-});
+}), finalizeAfter);
 
-app.post('/stamp', protect, billingMiddleware, idempotencyHandler, fileUpload.single('file'), async (req, res) => {
+app.post('/stamp', protect, ...billingWriteChain, idempotencyHandler, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
+        return sendError(res, req, 400, 'FILE_NOT_UPLOADED', t('error_file_not_uploaded', req.lang));
     }
     const { author, action = 'c2pa.created', agent = 'VideoKit API v1.0', captureOnly } = req.body;
     if (!author) {
-        return res.status(400).json({ error: t('error_author_missing', req.lang) });
+        return sendError(res, req, 400, 'AUTHOR_MISSING', t('error_author_missing', req.lang));
     }
     const isCaptureOnly = captureOnly === 'true' || captureOnly === true;
     if (isCaptureOnly) {
@@ -552,7 +697,7 @@ app.post('/stamp', protect, billingMiddleware, idempotencyHandler, fileUpload.si
                     type: 'stamp', customerId: req.tenant.id, input: { fileName: req.file.originalname },
                     status: 'failed', result: `PolicyViolationError: ${errorMessage}`
                 });
-                return res.status(422).json({ error: 'PolicyViolationError', message: errorMessage });
+                return sendError(res, req, 422, 'POLICY_VIOLATION', errorMessage);
             }
         }
     }
@@ -587,28 +732,28 @@ app.post('/stamp', protect, billingMiddleware, idempotencyHandler, fileUpload.si
             const message = t(error.message, req.lang, error.data);
             req.log.warn({ err: error }, `[/stamp] Politika ihlali: ${message}`);
             await audit.append({ type: 'stamp', customerId: req.tenant.id, input: { fileName: req.file.originalname }, status: 'failed', result: `PolicyViolationError: ${message}` });
-            return res.status(403).json({ error: 'policy_violation', message });
+            return sendError(res, req, 403, 'POLICY_VIOLATION', message);
         }
         await audit.append({ type: 'stamp', customerId: req.tenant.id, input: { fileName: req.file.originalname }, status: 'failed', result: error.message });
         if (error.code === 'ENOENT') {
             req.log.error({ err: error }, '[/stamp] Hata: İmzalama için gerekli anahtar/sertifika dosyası bulunamadı.');
-            return res.status(500).json({ error: t('error_server_config_keys_missing', req.lang) });
+            return sendError(res, req, 500, 'SERVER_CONFIG_KEYS_MISSING', t('error_server_config_keys_missing', req.lang));
         }
         req.log.error({ err: error }, '[/stamp] Manifest oluşturulurken hata oluştu');
-        res.status(500).json({ error: t('error_server_error', req.lang), details: error.message });
+        return sendError(res, req, 500, 'SERVER_ERROR', t('error_server_error', req.lang), { cause: error.message });
     } finally {
         await cleanupUploadedFile(req.file);
     }
-});
+}), finalizeAfter);
 
 // === TOPLU İŞLEM ENDPOINT'LERİ ===
-app.post('/batch/upload', protect, billingMiddleware, fileUpload.single('file'), async (req, res) => {
+app.post('/batch/upload', protect, ...billingWriteChain, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
+        return sendError(res, req, 400, 'FILE_NOT_UPLOADED', t('error_file_not_uploaded', req.lang));
     }
     const { batchId, fileId } = req.body;
     if (!batchId || !fileId) {
-        return res.status(400).json({ error: 'batchId ve fileId gereklidir.' });
+        return sendError(res, req, 400, 'BATCH_METADATA_REQUIRED', 'batchId ve fileId gereklidir.');
     }
     let jobQueued = false;
     try {
@@ -625,23 +770,23 @@ app.post('/batch/upload', protect, billingMiddleware, fileUpload.single('file'),
         res.status(202).json({ jobId: job.id });
     } catch (error) {
         req.log.error({ err: error }, '[/batch/upload] İş kuyruğa eklenirken hata oluştu');
-        res.status(500).json({ error: t('error_job_creation_failed', req.lang) });
+        return sendError(res, req, 500, 'JOB_CREATION_FAILED', t('error_job_creation_failed', req.lang));
     } finally {
         if (!jobQueued) {
             await cleanupUploadedFile(req.file);
         }
     }
-});
+}), finalizeAfter);
 
-app.get('/batch/:batchId/download', protect, billingMiddleware, async (req, res) => {
+app.get('/batch/:batchId/download', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const { batchId } = req.params;
     const jobIds = await redisConnection.smembers(`batch:${batchId}:jobs`);
     if (!jobIds || jobIds.length === 0) {
-        return res.status(404).json({ error: 'Bu batch için iş bulunamadı.' });
+        return sendError(res, req, 404, 'BATCH_JOB_NOT_FOUND', 'Bu batch için iş bulunamadı.');
     }
     const firstJob = await verifyQueue.getJob(jobIds[0]);
     if (!firstJob || firstJob.data.tenantId !== req.tenant.id) {
-        return res.status(403).json({ error: 'Bu kaynağa erişim yetkiniz yok.' });
+        return sendError(res, req, 403, 'BATCH_FORBIDDEN', 'Bu kaynağa erişim yetkiniz yok.');
     }
     const zip = new JSZip();
     const reportsFolder = zip.folder("reports");
@@ -656,35 +801,41 @@ app.get('/batch/:batchId/download', protect, billingMiddleware, async (req, res)
         }
     }
     if (completedCount === 0) {
-        return res.status(404).json({ error: 'İndirilecek tamamlanmış rapor bulunamadı.' });
+        return sendError(res, req, 404, 'BATCH_REPORTS_NOT_READY', 'İndirilecek tamamlanmış rapor bulunamadı.');
     }
     const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
     res.setHeader('Content-Disposition', `attachment; filename=videokit_batch_${batchId}.zip`);
     res.setHeader('Content-Type', 'application/zip');
     res.send(zipBuffer);
-});
+}), finalizeAfter);
 
 // === KULLANIM VE FATURALANDIRMA ENDPOINT'LERİ (OTURUM KORUMALI) ===
-app.get('/usage', protect, billingMiddleware, async (req, res) => {
+app.get('/usage', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const tenantId = req.tenant.id;
     const date = new Date();
     const monthKey = `usage:${tenantId}:${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
     const usage = await redisConnection.get(monthKey) || 0;
     res.status(200).json({ requests_used: parseInt(usage, 10) });
-});
+}), finalizeAfter);
 
-app.get('/quota', protect, billingMiddleware, async (req, res) => {
+app.get('/quota', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const plan = plans[req.tenant.plan];
     if (plan.monthlyQuota === null) {
-        return res.status(400).json({ error: 'This endpoint is for quota-based plans only. Check /billing for credit info.' });
+        return sendError(
+            res,
+            req,
+            400,
+            'PLAN_NOT_QUOTA_BASED',
+            'This endpoint is for quota-based plans only. Check /billing for credit info.'
+        );
     }
     const limit = plan.monthlyQuota;
     const remaining = parseInt(res.get('X-Quota-Remaining') || '0', 10);
     const used = limit - remaining;
     res.status(200).json({ plan: req.tenant.plan, quota_limit: limit, quota_used: used, quota_remaining: remaining });
-});
+}), finalizeAfter);
 
-app.get('/billing', protect, billingMiddleware, async (req, res) => {
+app.get('/billing', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const plan = plans[req.tenant.plan];
     const response = { plan: req.tenant.plan, plan_name: plan.name };
     if (plan.monthlyQuota !== null) {
@@ -696,62 +847,185 @@ app.get('/billing', protect, billingMiddleware, async (req, res) => {
         response.credits = { remaining: remainingCredits };
     }
     res.status(200).json(response);
-});
+}), finalizeAfter);
 
 // === ANALİTİK ENDPOINT'İ (OTURUM KORUMALI) ===
-app.get('/analytics', protect, billingMiddleware, async (req, res) => {
-    const tenantId = req.tenant.id; // Artık req.tenant üzerinden geliyor
-    const { startDate, endDate } = req.query;
+app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res) => {
+    const sessionTenantId = req.tenant?.id;
+    const tenantIdParam = typeof req.query.tenantId === 'string' ? req.query.tenantId.trim() : null;
+    const tenantId = tenantIdParam || sessionTenantId;
+
+    if (!tenantId) {
+        return sendError(res, req, 400, 'TENANT_REQUIRED', 'Tenant identifier is required.');
+    }
+
+    if (sessionTenantId && tenantId !== sessionTenantId) {
+        return sendError(res, req, 403, 'TENANT_MISMATCH', 'You are not allowed to access analytics for another tenant.');
+    }
+
+    const fromParam = typeof req.query.from === 'string'
+        ? req.query.from
+        : (typeof req.query.startDate === 'string' ? req.query.startDate : null);
+    const toParam = typeof req.query.to === 'string'
+        ? req.query.to
+        : (typeof req.query.endDate === 'string' ? req.query.endDate : null);
+    const groupByParam = typeof req.query.groupBy === 'string' ? req.query.groupBy.toLowerCase() : 'day';
+    const allowedGroups = new Set(['hour', 'day']);
+
+    if (!allowedGroups.has(groupByParam)) {
+        return sendError(res, req, 400, 'INVALID_GROUP_BY', 'groupBy must be one of hour or day.');
+    }
+
+    const now = new Date();
+    const toDate = toParam ? new Date(toParam) : now;
+    if (Number.isNaN(toDate.getTime())) {
+        return sendError(res, req, 400, 'INVALID_TO', 'The provided "to" date is invalid.');
+    }
+
+    const defaultFrom = new Date(toDate.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const fromDate = fromParam ? new Date(fromParam) : defaultFrom;
+    if (Number.isNaN(fromDate.getTime())) {
+        return sendError(res, req, 400, 'INVALID_FROM', 'The provided "from" date is invalid.');
+    }
+
+    if (fromDate > toDate) {
+        return sendError(res, req, 400, 'INVALID_RANGE', 'The "from" date must be earlier than "to".');
+    }
+
+    const toExclusive = new Date(toDate.getTime() + 1);
+    const fromIso = fromDate.toISOString();
+    const toIso = toExclusive.toISOString();
 
     try {
-        const date = new Date();
-        const monthKey = `usage:${tenantId}:${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
-        const totalCalls = parseInt(await redisConnection.get(monthKey) || '0', 10);
+        const totalsResult = await dbPool.query(`
+            SELECT
+                date_trunc($4::text, occurred_at) AS bucket,
+                COUNT(*)::bigint AS total,
+                COUNT(*) FILTER (WHERE status_code BETWEEN 200 AND 299)::bigint AS success_count,
+                COUNT(*) FILTER (WHERE status_code BETWEEN 400 AND 499)::bigint AS errors_4xx,
+                COUNT(*) FILTER (WHERE status_code BETWEEN 500 AND 599)::bigint AS errors_5xx
+            FROM api_events
+            WHERE tenant_id = $1
+              AND occurred_at >= $2::timestamptz
+              AND occurred_at < $3::timestamptz
+            GROUP BY bucket
+            ORDER BY bucket ASC;
+        `, [tenantId, fromIso, toIso, groupByParam]);
 
-        const activities = [];
-        let successfulCalls = 0;
-        let totalDuration = 0;
-        const end = endDate ? new Date(endDate) : new Date();
-        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(end.getDate() - 30));
+        const totals = totalsResult.rows.map((row) => {
+            const bucketDate = row.bucket instanceof Date ? row.bucket : new Date(row.bucket);
+            const total = Number(row.total || 0);
+            const success = Number(row.success_count || 0);
+            const errors4xx = Number(row.errors_4xx || 0);
+            const errors5xx = Number(row.errors_5xx || 0);
+            const errors = { '4xx': errors4xx, '5xx': errors5xx };
 
-        for (let i = 0; i < totalCalls; i++) {
-            const timestamp = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-            const isSuccess = Math.random() > 0.1;
-            const duration = Math.floor(800 + Math.random() * 2000);
-
-            if (isSuccess) successfulCalls++;
-            totalDuration += duration;
-
-            activities.push({
-                timestamp: timestamp.toISOString(),
-                type: Math.random() > 0.5 ? '/verify' : '/stamp',
-                status: isSuccess ? 'success' : 'failed',
-                duration,
-            });
-        }
-
-        activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        const failedCalls = totalCalls - successfulCalls;
-        const averageProcessingTime = totalCalls > 0 ? Math.round(totalDuration / totalCalls) : 0;
-
-        res.json({
-            summary: {
-                totalCalls,
-                successfulCalls,
-                failedCalls,
-                averageProcessingTime,
-            },
-            activities: activities,
+            return {
+                bucket: bucketDate.toISOString(),
+                total,
+                success,
+                errors,
+                successRate: total > 0 ? success / total : 0,
+            };
         });
 
+        const aggregate = totals.reduce((acc, row) => {
+            acc.total += row.total;
+            acc.success += row.success;
+            acc.errors['4xx'] += row.errors['4xx'];
+            acc.errors['5xx'] += row.errors['5xx'];
+            return acc;
+        }, { total: 0, success: 0, errors: { '4xx': 0, '5xx': 0 } });
+
+        const latencyResult = await dbPool.query(`
+            WITH durations AS (
+                SELECT (metadata->>'duration_ms')::numeric AS value
+                FROM api_events
+                WHERE tenant_id = $1
+                  AND occurred_at >= $2::timestamptz
+                  AND occurred_at < $3::timestamptz
+                  AND (metadata->>'duration_ms') ~ '^\\d+(?:\\.\\d+)?$'
+            )
+            SELECT
+                AVG(value) AS avg_duration,
+                PERCENTILE_DISC(0.95) WITHIN GROUP (ORDER BY value) AS p95_duration
+            FROM durations;
+        `, [tenantId, fromIso, toIso]);
+
+        const latencyRow = latencyResult.rows[0] || {};
+        const latency = {
+            avg: latencyRow.avg_duration != null ? Number(latencyRow.avg_duration) : null,
+            p95: latencyRow.p95_duration != null ? Number(latencyRow.p95_duration) : null,
+        };
+
+        const topEndpointsResult = await dbPool.query(`
+            SELECT endpoint, COUNT(*)::bigint AS count
+            FROM api_events
+            WHERE tenant_id = $1
+              AND occurred_at >= $2::timestamptz
+              AND occurred_at < $3::timestamptz
+            GROUP BY endpoint
+            ORDER BY count DESC
+            LIMIT 20;
+        `, [tenantId, fromIso, toIso]);
+
+        const endpointAggregates = new Map();
+        for (const row of topEndpointsResult.rows) {
+            const rawEndpoint = typeof row.endpoint === 'string' ? row.endpoint : '/';
+            let normalized;
+            try {
+                normalized = normalizeEndpoint(rawEndpoint);
+            } catch (error) {
+                req.log?.warn?.({ err: error, endpoint: rawEndpoint }, 'Endpoint normalization failed, using raw value.');
+                normalized = rawEndpoint || '/';
+            }
+            const current = endpointAggregates.get(normalized) || 0;
+            endpointAggregates.set(normalized, current + Number(row.count || 0));
+        }
+
+        const topEndpoints = Array.from(endpointAggregates.entries())
+            .map(([endpoint, count]) => ({ endpoint, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+        const responseBody = {
+            totals,
+            successRate: aggregate.total > 0 ? aggregate.success / aggregate.total : 0,
+            errors: aggregate.errors,
+            latency,
+            topEndpoints,
+        };
+
+        res.json(responseBody);
     } catch (error) {
         req.log.error({ err: error }, `[/analytics] Hata:`);
-        res.status(500).json({ error: 'Analitik verileri alınamadı.' });
+        return sendError(res, req, 500, 'ANALYTICS_FETCH_FAILED', 'Analitik verileri alınamadı.');
     }
-});
+}), finalizeAfter);
 
 // === PORTAL İÇİN YÖNETİM ENDPOINT'LERİ (OTURUM VE ROL KORUMALI) ===
+
+// Yönetim paneli için tenant listesini döner.
+app.get('/management/tenants', protect, authorize('admin'), async (req, res) => {
+    try {
+        const result = await dbPool.query(
+            `SELECT id, name, plan_id, created_at, updated_at FROM tenants ORDER BY created_at DESC`
+        );
+
+        const tenants = result.rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            planId: row.plan_id,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        }));
+
+        res.status(200).json({ tenants });
+    } catch (error) {
+        req.log?.error?.({ err: error }, '[Mgmt] Tenant listesi alınamadı.');
+        return sendError(res, req, 500, 'TENANT_LIST_FAILED', 'Tenant listesi getirilemedi.');
+    }
+});
 
 // Bu endpoint artık kullanılmıyor, kayıt /auth/register üzerinden yapılıyor.
 // İstenirse admin paneli için yeniden düzenlenebilir.
@@ -764,7 +1038,7 @@ app.get('/management/keys', protect, authorize('admin', 'developer'), async (req
     const tenantId = req.tenant?.id ?? req.user?.tenantId;
     if (!tenantId) {
         req.log.warn('[Mgmt] Tenant context missing while listing API keys.');
-        return res.status(401).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 401, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
 
     try {
@@ -773,7 +1047,7 @@ app.get('/management/keys', protect, authorize('admin', 'developer'), async (req
         res.status(200).json({ keys });
     } catch (error) {
         req.log.error({ err: error, tenantId }, '[Mgmt] API key listesi alınamadı.');
-        res.status(500).json({ error: t('error_api_keys_fetch_failed', req.lang) });
+        return sendError(res, req, 500, 'API_KEYS_FETCH_FAILED', t('error_api_keys_fetch_failed', req.lang));
     }
 });
 
@@ -782,7 +1056,7 @@ app.post('/management/keys', protect, authorize('admin', 'developer'), async (re
     const tenantId = req.tenant?.id ?? req.user?.tenantId;
     if (!tenantId) {
         req.log.warn('[Mgmt] Tenant context missing while creating API key.');
-        return res.status(401).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 401, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
 
     const tenantPlan = req.tenant?.plan;
@@ -792,9 +1066,13 @@ app.post('/management/keys', protect, authorize('admin', 'developer'), async (re
         if (planConfig?.apiKeyLimit) {
             const existingKeyCount = await redisConnection.scard(`keys_for_tenant:${tenantId}`);
             if (existingKeyCount >= planConfig.apiKeyLimit) {
-                return res.status(429).json({
-                    error: t('error_api_key_limit_reached', req.lang, { limit: planConfig.apiKeyLimit })
-                });
+                return sendError(
+                    res,
+                    req,
+                    429,
+                    'API_KEY_LIMIT_REACHED',
+                    t('error_api_key_limit_reached', req.lang, { limit: planConfig.apiKeyLimit })
+                );
             }
         }
 
@@ -805,7 +1083,7 @@ app.post('/management/keys', protect, authorize('admin', 'developer'), async (re
             // Eğer Redis'te yoksa, PostgreSQL'den alıp Redis'e yazabiliriz.
             const tenantResult = await dbPool.query('SELECT plan FROM tenants WHERE id = $1', [tenantId]);
             if (tenantResult.rows.length === 0) {
-                return res.status(404).json({ error: 'Tenant not found.' });
+                return sendError(res, req, 404, 'TENANT_NOT_FOUND', 'Tenant not found.');
             }
             await redisConnection.hset(redisTenantKey, { id: tenantId, plan: tenantResult.rows[0].plan });
         }
@@ -822,7 +1100,7 @@ app.post('/management/keys', protect, authorize('admin', 'developer'), async (re
         res.status(201).json({ apiKey: newApiKey, keyId: hashApiKey(newApiKey) });
     } catch (error) {
         req.log.error({ err: error, tenantId }, '[Mgmt] Yeni API anahtarı oluşturulamadı.');
-        res.status(500).json({ error: t('error_api_key_generation_failed', req.lang) });
+        return sendError(res, req, 500, 'API_KEY_GENERATION_FAILED', t('error_api_key_generation_failed', req.lang));
     }
 });
 
@@ -832,27 +1110,27 @@ app.delete('/management/keys/:keyIdentifier', protect, authorize('admin', 'devel
 
     if (!loggedInTenantId) {
         req.log.warn('[Mgmt] Tenant context missing while deleting API key.');
-        return res.status(401).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 401, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
 
     const tenantKeys = await redisConnection.smembers(`keys_for_tenant:${loggedInTenantId}`);
     const apiKey = tenantKeys.find((candidate) => candidate === keyIdentifier || hashApiKey(candidate) === keyIdentifier);
 
     if (!apiKey) {
-        return res.status(404).json({ error: 'API key not found.' });
+        return sendError(res, req, 404, 'API_KEY_NOT_FOUND', 'API key not found.');
     }
 
     // API anahtarının hangi tenanta ait olduğunu bul
     const keyOwnerTenantId = await redisConnection.get(`api_key:${apiKey}`);
 
     if (!keyOwnerTenantId) {
-        return res.status(404).json({ error: 'API key not found.' });
+        return sendError(res, req, 404, 'API_KEY_NOT_FOUND', 'API key not found.');
     }
 
     // Kullanıcının sadece kendi anahtarını silebildiğinden emin ol
     if (keyOwnerTenantId !== loggedInTenantId) {
         req.log.warn({ loggedInTenantId, keyOwnerTenantId }, `[AUTH] Yetkisiz anahtar silme denemesi.`);
-        return res.status(403).json({ error: 'Forbidden: You can only delete your own API keys.' });
+        return sendError(res, req, 403, 'API_KEY_FORBIDDEN', 'Forbidden: You can only delete your own API keys.');
     }
 
     const pipeline = redisConnection.pipeline();
@@ -918,11 +1196,17 @@ app.get('/management/audit-log/export', protect, authorize('admin'), async (req,
             res.setHeader('Content-Type', 'text/plain');
             res.send(cefPayload);
         } else {
-            res.status(400).json({ error: 'Desteklenmeyen format. Sadece "json" veya "cef" kullanılabilir.' });
+            return sendError(
+                res,
+                req,
+                400,
+                'AUDIT_UNSUPPORTED_FORMAT',
+                'Desteklenmeyen format. Sadece "json" veya "cef" kullanılabilir.'
+            );
         }
     } catch (error) {
         req.log.error({ err: error }, '[Mgmt] Denetim logu dışa aktarılırken hata oluştu:');
-        res.status(500).json({ error: 'Denetim logları alınamadı.' });
+        return sendError(res, req, 500, 'AUDIT_EXPORT_FAILED', 'Denetim logları alınamadı.');
     }
 });
 
@@ -948,11 +1232,11 @@ app.post('/management/tenants/:tenantId/branding', protect, authorize('admin'), 
     const loggedInTenantId = req.tenant?.id ?? req.user?.tenantId;
     if (!loggedInTenantId || loggedInTenantId !== tenantId) {
         req.log.warn({ tenantId, loggedInTenantId }, '[Mgmt] Yetkisiz marka güncelleme denemesi.');
-        return res.status(403).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 403, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
 
     if (!primaryColor && !backgroundColor) {
-        return res.status(400).json({ error: 'En az bir marka ayarı (primaryColor, backgroundColor) gereklidir.' });
+        return sendError(res, req, 400, 'BRANDING_FIELDS_REQUIRED', 'En az bir marka ayarı (primaryColor, backgroundColor) gereklidir.');
     }
 
     const settingsToSave = {};
@@ -969,10 +1253,10 @@ app.post('/management/tenants/:tenantId/branding/logo', protect, authorize('admi
     const loggedInTenantId = req.tenant?.id ?? req.user?.tenantId;
     if (!loggedInTenantId || loggedInTenantId !== tenantId) {
         req.log.warn({ tenantId, loggedInTenantId }, '[Mgmt] Yetkisiz logo yükleme denemesi.');
-        return res.status(403).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 403, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
     if (!req.file) {
-        return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
+        return sendError(res, req, 400, 'FILE_NOT_UPLOADED', t('error_file_not_uploaded', req.lang));
     }
 
     const logoUrl = `/uploads/${req.file.filename}`;
@@ -981,7 +1265,7 @@ app.post('/management/tenants/:tenantId/branding/logo', protect, authorize('admi
     req.log.info({ tenantId, logoUrl }, `[Mgmt] Kiracı için yeni logo yüklendi.`);
     res.status(200).json({ message: 'Logo başarıyla yüklendi.', logoUrl });
 }, (error, req, res, next) => {
-    res.status(400).json({ error: error.message });
+    return sendError(res, req, 400, 'LOGO_UPLOAD_ERROR', error.message);
 });
 
 app.use((err, req, res, next) => {
@@ -991,12 +1275,12 @@ app.use((err, req, res, next) => {
             const message = translated && translated !== 'error_file_too_large'
                 ? translated
                 : 'Uploaded file exceeds the maximum allowed size.';
-            return res.status(413).json({ error: message });
+            return sendError(res, req, 413, 'FILE_TOO_LARGE', message);
         }
-        return res.status(400).json({ error: err.message });
+        return sendError(res, req, 400, 'UPLOAD_ERROR', err.message);
     }
     if (err?.code === 'LIMIT_UNEXPECTED_FILE') {
-        return res.status(400).json({ error: 'Unexpected file field received.' });
+        return sendError(res, req, 400, 'UNEXPECTED_FILE_FIELD', 'Unexpected file field received.');
     }
     return next(err);
 });
@@ -1004,12 +1288,19 @@ app.use((err, req, res, next) => {
 Sentry.setupExpressErrorHandler(app);
 
 app.use((err, req, res, next) => {
-    res.status(500).json({
-        error: "Beklenmeyen bir sunucu hatası oluştu.",
-        errorId: res.sentry,
-    });
+    const response = {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Beklenmeyen bir sunucu hatası oluştu.',
+        requestId: ensureRequestId(req, res),
+    };
+
+    if (res.sentry) {
+        response.details = { errorId: res.sentry };
+    }
+
+    res.status(500).json(response);
     // YENİ: Bu tekrar eden bir yanıt. Sadece bir tanesi yeterli.
-    // res.status(500).json({ ok: false, error: "internal_error" }); 
+    // res.status(500).json({ ok: false, error: "internal_error" });
 });
 
 // === ZAMANLANMIŞ GÖREVLER ===

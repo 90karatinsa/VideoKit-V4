@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Toplu Doğrulama - VideoKit Portalı</title>
+  <title data-i18n="batch_page_title">Toplu Doğrulama - VideoKit Portalı</title>
 
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="batch.css" />
@@ -15,22 +15,23 @@
   <header class="app-header">
     <div class="header-content">
       <img id="portal-logo" alt="Kurum Logosu" class="portal-logo" src="default-logo.svg" />
-      <h1>VideoKit Müşteri Portalı</h1>
+      <h1 data-i18n="portal_title">VideoKit Müşteri Portalı</h1>
     </div>
 
     <div class="header-controls">
       <nav id="main-nav" class="main-nav" hidden>
-        <a href="index.html">Panel</a>
-        <a href="batch.html">Toplu İşlem</a>
+        <a href="index.html" data-i18n="nav_dashboard">Panel</a>
+        <a href="batch.html" data-i18n="nav_batch_processing">Toplu İşlem</a>
       </nav>
 
       <div class="language-selector">
-        <label for="lang-switcher" class="sr-only">Dil seçimi</label>
+        <label for="lang-switcher" class="sr-only" data-i18n="language_switcher_label">Dil seçimi</label>
         <select id="lang-switcher">
-          <option value="tr">Türkçe</option>
-          <option value="en">English</option>
-          <option value="de">Deutsch</option>
-          <option value="es">Español</option>
+          <option value="tr" data-i18n="language_option_tr">Türkçe</option>
+          <option value="en" data-i18n="language_option_en">English</option>
+          <option value="de" data-i18n="language_option_de">Deutsch</option>
+          <option value="es" data-i18n="language_option_es">Español</option>
+          <option value="en-XA" data-i18n="language_option_en_xa">Pseudo-Locale (QA)</option>
         </select>
       </div>
 
@@ -45,7 +46,7 @@
     <div class="view-stack">
       <section id="batch-view" class="view view--dashboard" hidden>
         <div id="user-info" class="user-info">
-          <span id="tenant-info-display">Lütfen ana panelden giriş yapın...</span>
+          <span id="tenant-info-display" data-i18n="batch_login_prompt">Lütfen ana panelden giriş yapın...</span>
         </div>
 
         <div class="card">
