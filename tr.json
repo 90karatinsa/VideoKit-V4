@@ -85,6 +85,7 @@
   "language_option_en": "İngilizce",
   "language_option_de": "Almanca",
   "language_option_es": "İspanyolca",
+  "language_option_en_xa": "Pseudo-Locale (QA)",
   "dashboard_overview_label": "Genel Bakış",
   "dashboard_subheading": "Aboneliğinizi, kullanımınızı ve API anahtarlarınızı buradan yönetin.",
   "api_keys_subtitle": "Aktif anahtarlarınızı yönetin ve gerekirse iptal edin.",
