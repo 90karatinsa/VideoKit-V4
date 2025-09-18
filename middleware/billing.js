@@ -108,8 +108,20 @@ const state = {
   readLimiterCache: new Map(),
 };
 
+const register = promClient.register;
+
+const getOrCreateMetric = (name, factory) => {
+  const existing = register.getSingleMetric(name);
+  if (existing) {
+    return existing;
+  }
+  return factory();
+};
+
+const DEFAULT_TENANT_LABEL = 'unknown';
+
 const histogramName = 'videokit_api_billable_duration_ms';
-let durationMetric = promClient.register.getSingleMetric(histogramName);
+let durationMetric = register.getSingleMetric(histogramName);
 if (!durationMetric) {
   durationMetric = new promClient.Histogram({
     name: histogramName,
@@ -120,7 +132,7 @@ if (!durationMetric) {
 }
 
 const counterName = 'videokit_api_billable_requests_total';
-let requestCounter = promClient.register.getSingleMetric(counterName);
+let requestCounter = register.getSingleMetric(counterName);
 if (!requestCounter) {
   requestCounter = new promClient.Counter({
     name: counterName,
@@ -128,6 +140,19 @@ if (!requestCounter) {
     labelNames: ['method', 'endpoint', 'status', 'billable'],
   });
 }
+
+const quotaBlockMetricName = 'quota_block_total';
+const quotaBlockCounter = getOrCreateMetric(quotaBlockMetricName, () => new promClient.Counter({
+  name: quotaBlockMetricName,
+  help: 'Toplam kota aşımlarının sayısı.',
+  labelNames: ['tenant', 'endpoint'],
+}));
+
+const analyticsInsertFailuresName = 'analytics_insert_failures_total';
+const analyticsInsertFailuresTotal = getOrCreateMetric(analyticsInsertFailuresName, () => new promClient.Counter({
+  name: analyticsInsertFailuresName,
+  help: 'API analitik kayıtlarının veritabanına yazılamadığı toplam durum sayısı.',
+}));
 
 const normalizeRateLimitMap = (limits) => {
   if (!limits) return new Map();
@@ -801,6 +826,12 @@ export const enforceQuota = async (req, res, next) => {
     }
 
     if (!usage.allowed) {
+      quotaBlockCounter.inc({
+        tenant: typeof tenantId === 'string' && tenantId.trim().length > 0 ? tenantId : DEFAULT_TENANT_LABEL,
+        endpoint: typeof operation.normalizedEndpoint === 'string' && operation.normalizedEndpoint.trim().length > 0
+          ? operation.normalizedEndpoint
+          : '/',
+      });
       return res.status(429).json({
         code: 'QUOTA_EXCEEDED',
         remaining: Math.max(0, Math.floor(limit - usage.total)),
@@ -959,24 +990,29 @@ export const finalizeAndLog = (req, res, next) => {
       const tenantId = req.tenant?.id ?? null;
       if (tenantId) {
         const requestId = ensureRequestId(req, res);
-        await dbPool.query(
-          `INSERT INTO api_events (tenant_id, endpoint, event_type, status_code, request_id, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            tenantId,
-            endpoint,
-            method,
-            status,
-            requestId,
-            {
-              duration_ms: durationMs,
-              billable,
-              weight: billing.weight ?? operationWeight(req),
-              usage: billing.usage ?? null,
-              idempotency: billing.idempotency?.key ?? null,
-            },
-          ],
-        );
+        try {
+          await dbPool.query(
+            `INSERT INTO api_events (tenant_id, endpoint, event_type, status_code, request_id, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              tenantId,
+              endpoint,
+              method,
+              status,
+              requestId,
+              {
+                duration_ms: durationMs,
+                billable,
+                weight: billing.weight ?? operationWeight(req),
+                usage: billing.usage ?? null,
+                idempotency: billing.idempotency?.key ?? null,
+              },
+            ],
+          );
+        } catch (insertError) {
+          analyticsInsertFailuresTotal.inc();
+          throw insertError;
+        }
       }
 
       if (billing.idempotency?.key) {

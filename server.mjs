@@ -110,32 +110,117 @@ app.use(httpLogger);
 const collectDefaultMetrics = promClient.collectDefaultMetrics;
 collectDefaultMetrics({ prefix: 'videokit_api_' });
 
-const httpRequestDurationMicroseconds = new promClient.Histogram({
-    name: 'videokit_api_http_request_duration_ms',
-    help: 'API isteklerinin milisaniye cinsinden süresi',
-    labelNames: ['method', 'route', 'code'],
-    buckets: [50, 100, 200, 300, 500, 1000, 2500]
-});
+const register = promClient.register;
 
-const httpRequestsTotal = new promClient.Counter({
-    name: 'videokit_api_http_requests_total',
-    help: 'Alınan toplam HTTP istek sayısı',
-    labelNames: ['method', 'route', 'code']
-});
+const getOrCreateMetric = (name, factory) => {
+    const existing = register.getSingleMetric(name);
+    if (existing) {
+        return existing;
+    }
+    return factory();
+};
+
+const httpRequestDurationHistogram = getOrCreateMetric('http_request_duration_ms', () => new promClient.Histogram({
+    name: 'http_request_duration_ms',
+    help: 'HTTP isteklerinin milisaniye cinsinden süresi.',
+    labelNames: ['method', 'path', 'tenant'],
+    buckets: [50, 100, 200, 300, 500, 1000, 2500]
+}));
+
+const httpRequestsTotal = getOrCreateMetric('http_requests_total', () => new promClient.Counter({
+    name: 'http_requests_total',
+    help: 'HTTP istekleri toplam sayısı.',
+    labelNames: ['method', 'path', 'tenant', 'status']
+}));
+
+const httpErrorsTotal = getOrCreateMetric('http_errors_total', () => new promClient.Counter({
+    name: 'http_errors_total',
+    help: 'HTTP hatalarının toplam sayısı.',
+    labelNames: ['status']
+}));
+
+const DEFAULT_TENANT_LABEL = 'unknown';
+
+const resolveTenantLabel = (req) => {
+    const tenantId = req.tenant?.id;
+    if (typeof tenantId === 'string' && tenantId.trim().length > 0) {
+        return tenantId;
+    }
+    return DEFAULT_TENANT_LABEL;
+};
+
+const resolvePathLabel = (req) => {
+    const base = typeof req.baseUrl === 'string' ? req.baseUrl : '';
+    const rawRoute = req.route?.path;
+
+    const normalize = (value) => {
+        if (!value) {
+            return null;
+        }
+        if (typeof value === 'string') {
+            return value;
+        }
+        if (Array.isArray(value) && value.length > 0) {
+            return value[0];
+        }
+        if (value instanceof RegExp) {
+            return value.source;
+        }
+        return String(value);
+    };
+
+    const routePath = normalize(rawRoute);
+    if (routePath) {
+        const combined = `${base}${routePath}`;
+        return combined || '/';
+    }
+
+    const fallback = req.originalUrl || req.url || req.path;
+    if (typeof fallback === 'string' && fallback.length > 0) {
+        const withoutQuery = fallback.split('?')[0];
+        return withoutQuery || '/';
+    }
+
+    return '/';
+};
 
 app.use((req, res, next) => {
     req.lang = getLang(req);
 
     const pathsToSkip = ['/metrics', '/healthz', '/readyz', '/uploads'];
-    if (pathsToSkip.some(path => req.path.startsWith(path))) {
+    const currentPath = typeof req.path === 'string' ? req.path : '';
+    if (pathsToSkip.some(path => currentPath.startsWith(path))) {
         return next();
     }
 
-    const end = httpRequestDurationMicroseconds.startTimer();
+    const startHighRes = typeof process?.hrtime?.bigint === 'function' ? process.hrtime.bigint() : null;
+    const startTime = startHighRes ?? Date.now();
     res.on('finish', () => {
-        const route = req.route ? req.route.path : 'unknown_route';
-        end({ route, code: res.statusCode, method: req.method });
-        httpRequestsTotal.inc({ route, code: res.statusCode, method: req.method });
+        const method = (req.method || 'UNKNOWN').toUpperCase();
+        const status = res.statusCode;
+        const tenant = resolveTenantLabel(req);
+        const pathLabel = resolvePathLabel(req);
+
+        const durationMs = startHighRes
+            ? Number(process.hrtime.bigint() - startHighRes) / 1e6
+            : Math.max(0, Date.now() - startTime);
+
+        httpRequestsTotal.inc({
+            method,
+            path: pathLabel,
+            tenant,
+            status: String(status),
+        });
+
+        httpRequestDurationHistogram.observe({
+            method,
+            path: pathLabel,
+            tenant,
+        }, durationMs);
+
+        if (status >= 400) {
+            httpErrorsTotal.inc({ status: String(status) });
+        }
     });
     next();
 });
