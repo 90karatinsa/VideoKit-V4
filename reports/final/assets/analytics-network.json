@@ -1,0 +1,33 @@
+[
+  {
+    "state": "initial",
+    "url": "http://127.0.0.1:4173/analytics?startDate=2025-08-19&endDate=2025-09-18",
+    "status": 200,
+    "bodySample": "{\"summary\":{\"totalCalls\":5,\"successfulCalls\":3,\"averageProcessingTime\":284},\"activities\":[{\"id\":\"act_0\",\"timestamp\":\"2025-09-18T19:54:33.096Z\",\"type\":\"VERIFY\",\"status\":\"failed\",\"duration\":250},{\"id\":\""
+  },
+  {
+    "state": "loading->default",
+    "url": "http://127.0.0.1:4173/analytics?startDate=2024-01-05&endDate=2025-09-18",
+    "status": 200,
+    "bodySample": "{\"summary\":{\"totalCalls\":5,\"successfulCalls\":3,\"averageProcessingTime\":284},\"activities\":[{\"id\":\"act_0\",\"timestamp\":\"2025-09-18T19:54:36.890Z\",\"type\":\"VERIFY\",\"status\":\"failed\",\"duration\":250},{\"id\":\""
+  },
+  {
+    "state": "empty",
+    "url": "http://127.0.0.1:4173/analytics?startDate=1999-01-02&endDate=2025-09-18",
+    "status": 200,
+    "body": {
+      "summary": {
+        "totalCalls": 0,
+        "successfulCalls": 0,
+        "averageProcessingTime": 0
+      },
+      "activities": []
+    }
+  },
+  {
+    "state": "error",
+    "url": "http://127.0.0.1:4173/analytics?startDate=1999-01-01&endDate=2025-09-18",
+    "status": 500,
+    "bodySample": "{\"error\":\"Simulated analytics failure\"}"
+  }
+]
