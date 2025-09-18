@@ -19,7 +19,9 @@
     "job:flush-usage": "node jobs/flush-usage.mjs",
     "job:rollup-analytics": "node jobs/rollup-analytics.mjs",
     "job:purge": "node jobs/purge.mjs",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "lint": "eslint --max-warnings=0 --rulesdir tools/eslint-rules --ext .js,.mjs,.jsx,.ts,.tsx src",
+    "i18n:audit": "node tools/run-i18n-audit.mjs"
   },
   "dependencies": {
     "@contentauth/toolkit": "^0.13.12",
@@ -60,9 +62,10 @@
   "author": "VideoKit Engineering",
   "license": "ISC",
   "devDependencies": {
+    "@playwright/test": "^1.46.0",
+    "eslint": "^8.57.1",
     "jest": "^29.7.0",
-    "supertest": "^6.3.4",
-    "@playwright/test": "^1.46.0"
+    "supertest": "^6.3.4"
   },
   "jest": {
     "testEnvironment": "node",

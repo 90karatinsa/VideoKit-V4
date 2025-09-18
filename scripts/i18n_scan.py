@@ -26,6 +26,19 @@ from typing import Iterable, List, Sequence
 
 
 EXTENSIONS = {".html", ".js", ".mjs", ".ts", ".tsx"}
+SKIP_DIR_NAMES = {
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "node_modules",
+    "vendor",
+    "tmp",
+    "dist",
+    "build",
+    "coverage",
+    "__pycache__",
+}
 HTML_ATTRS = {
     "placeholder",
     "title",
@@ -71,6 +84,11 @@ def iter_source_files(root: Path) -> Iterable[Path]:
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
+
+        # Skip directories that are known to contain dependencies or build artifacts.
+        if any(part in SKIP_DIR_NAMES for part in path.parts[:-1]):
+            continue
+
         if path.suffix.lower() in EXTENSIONS:
             yield path
 
