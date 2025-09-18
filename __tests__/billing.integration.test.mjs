@@ -130,7 +130,11 @@ const fetchAnalytics = async (db, tenantId, { from, to, groupBy = 'day' }) => {
   };
 };
 
-const createTestEnvironment = ({ limitsByTenant = { default: 5 }, endpointOverrides = {} } = {}) => {
+const createTestEnvironment = ({
+  limitsByTenant = { default: 5 },
+  endpointOverrides = {},
+  writeDelayMs = 0,
+} = {}) => {
   const db = new MockDb({ now: () => NOW });
   const redis = new MockRedis();
   const logger = { warn: jest.fn(), info: jest.fn(), error: jest.fn() };
@@ -138,6 +142,12 @@ const createTestEnvironment = ({ limitsByTenant = { default: 5 }, endpointOverri
 
   const app = express();
   app.use(express.json());
+
+  const maybeDelay = async () => {
+    if (writeDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, writeDelayMs));
+    }
+  };
 
   const getLimitForTenant = (tenantId) => {
     if (tenantId in limitsByTenant) {
@@ -172,11 +182,13 @@ const createTestEnvironment = ({ limitsByTenant = { default: 5 }, endpointOverri
 
   app.use(startTimer);
 
-  app.post('/write', enforceQuota, (req, res) => {
+  app.post('/write', enforceQuota, async (req, res) => {
+    await maybeDelay();
     res.status(200).json({ ok: true });
   });
 
-  app.post('/write-error', enforceQuota, (req, res) => {
+  app.post('/write-error', enforceQuota, async (req, res) => {
+    await maybeDelay();
     res.status(500).json({ ok: false });
   });
 
@@ -232,6 +244,52 @@ describe('billing integration flows', () => {
     expect(second.status).toBe(200);
 
     await waitForFinalize();
+
+    expect(db.getTotalUsage('tenant-a')).toBe(1);
+  });
+
+  test('parallel writes with unique idempotency keys increment once per request', async () => {
+    const parallelism = 5;
+    const { app, db } = createTestEnvironment({
+      limitsByTenant: { default: 20 },
+      writeDelayMs: 10,
+    });
+
+    const responses = await Promise.all(
+      Array.from({ length: parallelism }, (_, index) =>
+        request(app)
+          .post('/write')
+          .set('Idempotency-Key', `parallel-${index}`)
+          .send({ index })
+      )
+    );
+
+    for (const response of responses) {
+      expect(response.status).toBe(200);
+    }
+
+    await waitForFinalize(10);
+
+    expect(db.getTotalUsage('tenant-a')).toBe(parallelism);
+  });
+
+  test('parallel writes sharing an idempotency key are billed once', async () => {
+    const { app, db } = createTestEnvironment({
+      limitsByTenant: { default: 20 },
+      writeDelayMs: 10,
+    });
+
+    const headers = { 'Idempotency-Key': 'parallel-shared' };
+
+    const responses = await Promise.all(
+      Array.from({ length: 3 }, () => request(app).post('/write').set(headers).send({}))
+    );
+
+    for (const response of responses) {
+      expect(response.status).toBe(200);
+    }
+
+    await waitForFinalize(10);
 
     expect(db.getTotalUsage('tenant-a')).toBe(1);
   });

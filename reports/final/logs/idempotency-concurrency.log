@@ -1,0 +1,22 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> videokit-api@1.0.0 test
+> NODE_OPTIONS=--experimental-vm-modules jest __tests__/billing.integration.test.mjs
+
+(node:4893) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS __tests__/billing.integration.test.mjs
+  billing integration flows
+    ✓ allows writes below quota and increments usage counters (49 ms)
+    ✓ rejects writes above quota while GET remains free (13 ms)
+    ✓ idempotent writes are only billed once (8 ms)
+    ✓ parallel writes with unique idempotency keys increment once per request (22 ms)
+    ✓ parallel writes sharing an idempotency key are billed once (18 ms)
+    ✓ analytics aggregates real usage data per tenant (5 ms)
+    ✓ usage tracking is isolated per tenant (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       7 passed, 7 total
+Snapshots:   0 total
+Time:        0.615 s, estimated 1 s
+Ran all test suites matching /__tests__\/billing.integration.test.mjs/i.
