@@ -1,0 +1,276 @@
+$ DATABASE_URL=postgres://videokit:videokit@localhost:5432/videokit npm run migrate:up
+
+> videokit-api@1.0.0 migrate:up
+> node-pg-migrate up
+
+> Migrating files:
+> - 1769300003000_create_core_billing_tables
+### MIGRATION 1769300003000_create_core_billing_tables (UP) ###
+CREATE TABLE IF NOT EXISTS "api_events" (
+  "id" bigserial,
+  "ts" timestamptz DEFAULT now() NOT NULL,
+  "tenant_id" text NOT NULL,
+  "user_id" text,
+  "method" text NOT NULL,
+  "path" text NOT NULL,
+  "endpoint_norm" text NOT NULL,
+  "status" integer NOT NULL,
+  "duration_ms" integer,
+  "error_class" text,
+  "bytes_in" bigint,
+  "bytes_out" bigint
+);
+CREATE INDEX IF NOT EXISTS "api_events_tenant_ts_idx" ON "api_events" ("tenant_id", "ts" DESC);
+CREATE INDEX IF NOT EXISTS "api_events_tenant_endpoint_ts_idx" ON "api_events" ("tenant_id", "endpoint_norm", "ts" DESC);
+CREATE INDEX IF NOT EXISTS "api_events_ts_idx" ON "api_events" ("ts");
+CREATE INDEX IF NOT EXISTS "api_events_status_idx" ON "api_events" ("status");
+CREATE TABLE IF NOT EXISTS "usage_counters" (
+  "tenant_id" text NOT NULL,
+  "endpoint" text NOT NULL,
+  "period_start" date NOT NULL,
+  "count" bigint DEFAULT 0 NOT NULL,
+  "total_weight" bigint DEFAULT 0 NOT NULL
+);
+ALTER TABLE "usage_counters"
+  ADD CONSTRAINT "usage_counters_pkey" PRIMARY KEY ("tenant_id", "endpoint", "period_start");
+CREATE INDEX IF NOT EXISTS "usage_counters_tenant_endpoint_idx" ON "usage_counters" ("tenant_id", "endpoint");
+CREATE INDEX IF NOT EXISTS "usage_counters_period_idx" ON "usage_counters" ("period_start");
+CREATE TABLE IF NOT EXISTS "idempotency_keys" (
+  "tenant_id" text NOT NULL,
+  "idempotency_key" text NOT NULL,
+  "request_hash" text NOT NULL,
+  "response_status" integer,
+  "response_body" jsonb,
+  "locked_at" timestamptz,
+  "expires_at" timestamptz NOT NULL
+);
+ALTER TABLE "idempotency_keys"
+  ADD CONSTRAINT "idempotency_keys_pkey" PRIMARY KEY ("tenant_id", "idempotency_key");
+CREATE INDEX IF NOT EXISTS "idempotency_keys_tenant_expires_idx" ON "idempotency_keys" ("tenant_id", "expires_at");
+CREATE INDEX IF NOT EXISTS "idempotency_keys_request_hash_idx" ON "idempotency_keys" ("request_hash");
+CREATE TABLE IF NOT EXISTS "plan_entitlements" (
+  "plan_id" text PRIMARY KEY,
+  "monthly_api_calls_total" bigint DEFAULT 0 NOT NULL,
+  "overrides" jsonb DEFAULT '{}'::jsonb NOT NULL
+);
+ALTER TABLE "plan_entitlements"
+  ADD CONSTRAINT "plan_entitlements_monthly_calls_non_negative" CHECK (monthly_api_calls_total >= 0);
+CREATE TABLE IF NOT EXISTS "tenants" (
+  "tenant_id" text PRIMARY KEY,
+  "plan_id" text NOT NULL CONSTRAINT "tenants_plan_id_fkey" REFERENCES "plan_entitlements" ON DELETE restrict,
+  "quota_override" jsonb
+);
+CREATE INDEX IF NOT EXISTS "tenants_plan_id_idx" ON "tenants" ("plan_id");
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1769300003000_create_core_billing_tables', NOW());
+
+
+Migrations complete!
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \dt
+               List of relations
+ Schema |       Name        | Type  |  Owner   
+--------+-------------------+-------+----------
+ public | api_events        | table | videokit
+ public | idempotency_keys  | table | videokit
+ public | pgmigrations      | table | videokit
+ public | plan_entitlements | table | videokit
+ public | tenants           | table | videokit
+ public | usage_counters    | table | videokit
+(6 rows)
+
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \d api_events
+                                        Table "public.api_events"
+    Column     |           Type           | Collation | Nullable |                Default                 
+---------------+--------------------------+-----------+----------+----------------------------------------
+ id            | bigint                   |           | not null | nextval('api_events_id_seq'::regclass)
+ ts            | timestamp with time zone |           | not null | now()
+ tenant_id     | text                     |           | not null | 
+ user_id       | text                     |           |          | 
+ method        | text                     |           | not null | 
+ path          | text                     |           | not null | 
+ endpoint_norm | text                     |           | not null | 
+ status        | integer                  |           | not null | 
+ duration_ms   | integer                  |           |          | 
+ error_class   | text                     |           |          | 
+ bytes_in      | bigint                   |           |          | 
+ bytes_out     | bigint                   |           |          | 
+Indexes:
+    "api_events_status_idx" btree (status)
+    "api_events_tenant_endpoint_ts_idx" btree (tenant_id, endpoint_norm, ts DESC)
+    "api_events_tenant_ts_idx" btree (tenant_id, ts DESC)
+    "api_events_ts_idx" btree (ts)
+
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \d usage_counters
+             Table "public.usage_counters"
+    Column    |  Type  | Collation | Nullable | Default 
+--------------+--------+-----------+----------+---------
+ tenant_id    | text   |           | not null | 
+ endpoint     | text   |           | not null | 
+ period_start | date   |           | not null | 
+ count        | bigint |           | not null | 0
+ total_weight | bigint |           | not null | 0
+Indexes:
+    "usage_counters_pkey" PRIMARY KEY, btree (tenant_id, endpoint, period_start)
+    "usage_counters_period_idx" btree (period_start)
+    "usage_counters_tenant_endpoint_idx" btree (tenant_id, endpoint)
+
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \d idempotency_keys
+                       Table "public.idempotency_keys"
+     Column      |           Type           | Collation | Nullable | Default 
+-----------------+--------------------------+-----------+----------+---------
+ tenant_id       | text                     |           | not null | 
+ idempotency_key | text                     |           | not null | 
+ request_hash    | text                     |           | not null | 
+ response_status | integer                  |           |          | 
+ response_body   | jsonb                    |           |          | 
+ locked_at       | timestamp with time zone |           |          | 
+ expires_at      | timestamp with time zone |           | not null | 
+Indexes:
+    "idempotency_keys_pkey" PRIMARY KEY, btree (tenant_id, idempotency_key)
+    "idempotency_keys_request_hash_idx" btree (request_hash)
+    "idempotency_keys_tenant_expires_idx" btree (tenant_id, expires_at)
+
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \d plan_entitlements
+                   Table "public.plan_entitlements"
+         Column          |  Type  | Collation | Nullable |   Default   
+-------------------------+--------+-----------+----------+-------------
+ plan_id                 | text   |           | not null | 
+ monthly_api_calls_total | bigint |           | not null | 0
+ overrides               | jsonb  |           | not null | '{}'::jsonb
+Indexes:
+    "plan_entitlements_pkey" PRIMARY KEY, btree (plan_id)
+Check constraints:
+    "plan_entitlements_monthly_calls_non_negative" CHECK (monthly_api_calls_total >= 0)
+Referenced by:
+    TABLE "tenants" CONSTRAINT "tenants_plan_id_fkey" FOREIGN KEY (plan_id) REFERENCES plan_entitlements(plan_id) ON DELETE RESTRICT
+
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \d tenants
+                 Table "public.tenants"
+     Column     | Type  | Collation | Nullable | Default 
+----------------+-------+-----------+----------+---------
+ tenant_id      | text  |           | not null | 
+ plan_id        | text  |           | not null | 
+ quota_override | jsonb |           |          | 
+Indexes:
+    "tenants_pkey" PRIMARY KEY, btree (tenant_id)
+    "tenants_plan_id_idx" btree (plan_id)
+Foreign-key constraints:
+    "tenants_plan_id_fkey" FOREIGN KEY (plan_id) REFERENCES plan_entitlements(plan_id) ON DELETE RESTRICT
+
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \d pgmigrations
+                                      Table "public.pgmigrations"
+ Column |            Type             | Collation | Nullable |                 Default                  
+--------+-----------------------------+-----------+----------+------------------------------------------
+ id     | integer                     |           | not null | nextval('pgmigrations_id_seq'::regclass)
+ name   | character varying(255)      |           | not null | 
+ run_on | timestamp without time zone |           | not null | 
+Indexes:
+    "pgmigrations_pkey" PRIMARY KEY, btree (id)
+
+$ DATABASE_URL=postgres://videokit:videokit@localhost:5432/videokit npm run migrate:down -- --to 0
+
+> videokit-api@1.0.0 migrate:down
+> node-pg-migrate down --to 0
+
+> Migrating files:
+> - 1769300003000_create_core_billing_tables
+### MIGRATION 1769300003000_create_core_billing_tables (DOWN) ###
+DROP TABLE IF EXISTS "tenants" CASCADE;
+DROP TABLE IF EXISTS "plan_entitlements" CASCADE;
+DROP TABLE IF EXISTS "idempotency_keys" CASCADE;
+DROP TABLE IF EXISTS "usage_counters" CASCADE;
+DROP TABLE IF EXISTS "api_events" CASCADE;
+DELETE FROM "public"."pgmigrations" WHERE name='1769300003000_create_core_billing_tables';
+
+
+Migrations complete!
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \dt
+            List of relations
+ Schema |     Name     | Type  |  Owner   
+--------+--------------+-------+----------
+ public | pgmigrations | table | videokit
+(1 row)
+
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c 'SELECT * FROM pgmigrations;'
+ id | name | run_on 
+----+------+--------
+(0 rows)
+
+$ DATABASE_URL=postgres://videokit:videokit@localhost:5432/videokit npm run migrate:up
+
+> videokit-api@1.0.0 migrate:up
+> node-pg-migrate up
+
+> Migrating files:
+> - 1769300003000_create_core_billing_tables
+### MIGRATION 1769300003000_create_core_billing_tables (UP) ###
+CREATE TABLE IF NOT EXISTS "api_events" (
+  "id" bigserial,
+  "ts" timestamptz DEFAULT now() NOT NULL,
+  "tenant_id" text NOT NULL,
+  "user_id" text,
+  "method" text NOT NULL,
+  "path" text NOT NULL,
+  "endpoint_norm" text NOT NULL,
+  "status" integer NOT NULL,
+  "duration_ms" integer,
+  "error_class" text,
+  "bytes_in" bigint,
+  "bytes_out" bigint
+);
+CREATE INDEX IF NOT EXISTS "api_events_tenant_ts_idx" ON "api_events" ("tenant_id", "ts" DESC);
+CREATE INDEX IF NOT EXISTS "api_events_tenant_endpoint_ts_idx" ON "api_events" ("tenant_id", "endpoint_norm", "ts" DESC);
+CREATE INDEX IF NOT EXISTS "api_events_ts_idx" ON "api_events" ("ts");
+CREATE INDEX IF NOT EXISTS "api_events_status_idx" ON "api_events" ("status");
+CREATE TABLE IF NOT EXISTS "usage_counters" (
+  "tenant_id" text NOT NULL,
+  "endpoint" text NOT NULL,
+  "period_start" date NOT NULL,
+  "count" bigint DEFAULT 0 NOT NULL,
+  "total_weight" bigint DEFAULT 0 NOT NULL
+);
+ALTER TABLE "usage_counters"
+  ADD CONSTRAINT "usage_counters_pkey" PRIMARY KEY ("tenant_id", "endpoint", "period_start");
+CREATE INDEX IF NOT EXISTS "usage_counters_tenant_endpoint_idx" ON "usage_counters" ("tenant_id", "endpoint");
+CREATE INDEX IF NOT EXISTS "usage_counters_period_idx" ON "usage_counters" ("period_start");
+CREATE TABLE IF NOT EXISTS "idempotency_keys" (
+  "tenant_id" text NOT NULL,
+  "idempotency_key" text NOT NULL,
+  "request_hash" text NOT NULL,
+  "response_status" integer,
+  "response_body" jsonb,
+  "locked_at" timestamptz,
+  "expires_at" timestamptz NOT NULL
+);
+ALTER TABLE "idempotency_keys"
+  ADD CONSTRAINT "idempotency_keys_pkey" PRIMARY KEY ("tenant_id", "idempotency_key");
+CREATE INDEX IF NOT EXISTS "idempotency_keys_tenant_expires_idx" ON "idempotency_keys" ("tenant_id", "expires_at");
+CREATE INDEX IF NOT EXISTS "idempotency_keys_request_hash_idx" ON "idempotency_keys" ("request_hash");
+CREATE TABLE IF NOT EXISTS "plan_entitlements" (
+  "plan_id" text PRIMARY KEY,
+  "monthly_api_calls_total" bigint DEFAULT 0 NOT NULL,
+  "overrides" jsonb DEFAULT '{}'::jsonb NOT NULL
+);
+ALTER TABLE "plan_entitlements"
+  ADD CONSTRAINT "plan_entitlements_monthly_calls_non_negative" CHECK (monthly_api_calls_total >= 0);
+CREATE TABLE IF NOT EXISTS "tenants" (
+  "tenant_id" text PRIMARY KEY,
+  "plan_id" text NOT NULL CONSTRAINT "tenants_plan_id_fkey" REFERENCES "plan_entitlements" ON DELETE restrict,
+  "quota_override" jsonb
+);
+CREATE INDEX IF NOT EXISTS "tenants_plan_id_idx" ON "tenants" ("plan_id");
+INSERT INTO "public"."pgmigrations" (name, run_on) VALUES ('1769300003000_create_core_billing_tables', NOW());
+
+
+Migrations complete!
+$ psql postgres://videokit:videokit@localhost:5432/videokit -c \dt
+               List of relations
+ Schema |       Name        | Type  |  Owner   
+--------+-------------------+-------+----------
+ public | api_events        | table | videokit
+ public | idempotency_keys  | table | videokit
+ public | pgmigrations      | table | videokit
+ public | plan_entitlements | table | videokit
+ public | tenants           | table | videokit
+ public | usage_counters    | table | videokit
+(6 rows)
+
