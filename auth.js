@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 
+import { sendError } from './http-error.js';
+
 export const SESSION_COOKIE_NAME = 'videokit_session';
 
 /**
@@ -96,7 +98,7 @@ export function createAuthMiddleware({ dbPool, config }) {
         const context = await loadUserContext(payload.sub);
         if (!context) {
           clearSessionCookie(res);
-          return res.status(401).json({ error: 'Authentication required.' });
+          return sendError(res, req, 401, 'AUTHENTICATION_REQUIRED', 'Authentication required.');
         }
 
         req.user = context.user;
@@ -106,7 +108,7 @@ export function createAuthMiddleware({ dbPool, config }) {
       } catch (error) {
         req.log?.warn?.({ err: error }, '[auth] Invalid session token.');
         clearSessionCookie(res);
-        return res.status(401).json({ error: 'Authentication required.' });
+        return sendError(res, req, 401, 'AUTHENTICATION_REQUIRED', 'Authentication required.');
       }
     }
 
@@ -116,14 +118,14 @@ export function createAuthMiddleware({ dbPool, config }) {
       return next();
     }
 
-    return res.status(401).json({ error: 'Authentication required.' });
+    return sendError(res, req, 401, 'AUTHENTICATION_REQUIRED', 'Authentication required.');
   };
 
   const authorize = (...requiredRoles) => {
     const normalizedRequired = normalizeRoles(requiredRoles);
     return (req, res, next) => {
       if (!req.user) {
-        return res.status(401).json({ error: 'Authentication required.' });
+        return sendError(res, req, 401, 'AUTHENTICATION_REQUIRED', 'Authentication required.');
       }
 
       if (normalizedRequired.length === 0) {
@@ -137,7 +139,7 @@ export function createAuthMiddleware({ dbPool, config }) {
 
       const hasRole = normalizedRequired.some((role) => userRoles.has(role));
       if (!hasRole) {
-        return res.status(403).json({ error: 'Forbidden: insufficient role.' });
+        return sendError(res, req, 403, 'FORBIDDEN_ROLE', 'Forbidden: insufficient role.');
       }
 
       return next();

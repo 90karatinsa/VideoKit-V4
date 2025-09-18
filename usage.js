@@ -1,6 +1,8 @@
 import Redis from 'ioredis';
 import config from '../config.js';
 
+import { sendError } from './http-error.js';
+
 // Bu middleware, 'protect' middleware'inden SONRA çalışmalıdır.
 // `req.user` nesnesinin var olduğunu varsayar.
 
@@ -10,7 +12,7 @@ const checkUsage = (plans) => {
     return async (req, res, next) => {
         const tenantId = req.user.tenantId;
         if (!tenantId) {
-            return res.status(403).json({ error: 'Tenant ID bulunamadı.' });
+            return sendError(res, req, 403, 'TENANT_MISSING', 'Tenant ID bulunamadı.');
         }
         
         // REDIS'ten tenant bilgilerini al (plan vs.)
@@ -21,7 +23,7 @@ const checkUsage = (plans) => {
         const plan = plans[planName];
 
         if (!plan) {
-            return res.status(403).json({ error: 'Geçersiz abonelik planı.' });
+            return sendError(res, req, 403, 'INVALID_PLAN', 'Geçersiz abonelik planı.');
         }
         
         // Kota bazlı planlar için kontrol
@@ -33,7 +35,7 @@ const checkUsage = (plans) => {
             const usage = currentUsage ? parseInt(currentUsage, 10) : 0;
             
             if (usage >= plan.monthlyQuota) {
-                return res.status(429).json({ error: 'Aylık kotanız doldu.' });
+                return sendError(res, req, 429, 'MONTHLY_QUOTA_EXCEEDED', 'Aylık kotanız doldu.');
             }
             
             res.set('X-Quota-Limit', plan.monthlyQuota);
@@ -47,7 +49,7 @@ const checkUsage = (plans) => {
             const remainingCredits = credits ? parseInt(credits, 10) : 0;
             
             if (remainingCredits <= 0) {
-                return res.status(429).json({ error: 'Krediniz bitti.' });
+                return sendError(res, req, 429, 'CREDITS_DEPLETED', 'Krediniz bitti.');
             }
             
             res.set('X-Credits-Remaining', remainingCredits - 1);

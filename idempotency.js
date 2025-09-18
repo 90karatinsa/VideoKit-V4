@@ -1,3 +1,5 @@
+import { sendError } from './http-error.js';
+
 /**
  * Express için bir idempotency middleware (ara yazılım) oluşturur.
  * Bu middleware, aynı 'Idempotency-Key' başlığına sahip tekrar eden isteklerin
@@ -29,7 +31,7 @@ export const createIdempotencyMiddleware = (redis) => {
         // Başka bir isteğin bu anahtarı şu anda işlediğini belirten bir kilit var mı?
         if (data.status === 'processing') {
           console.log(`[Idempotency] CONFLICT: ${idempotencyKey} anahtarı için zaten bir işlem sürüyor.`);
-          return res.status(409).json({ error: 'A request with this Idempotency-Key is already in progress.' });
+          return sendError(res, req, 409, 'IDEMPOTENCY_IN_PROGRESS', 'A request with this Idempotency-Key is already in progress.');
         } else {
           // Önbellekte tamamlanmış bir sonuç var. Onu döndür.
           console.log(`[Idempotency] HIT: ${idempotencyKey} anahtarı için önbellekteki yanıt döndürülüyor.`);
@@ -53,7 +55,7 @@ export const createIdempotencyMiddleware = (redis) => {
     if (!lockAcquired) {
       // Bu, çok nadir bir race condition durumudur: İlk 'get' ile bu 'set' arasına başka bir istek girdi.
       // Bu durumu da devam eden bir işlem olarak kabul edip 409 döndür.
-      return res.status(409).json({ error: 'A request with this Idempotency-Key is already in progress.' });
+      return sendError(res, req, 409, 'IDEMPOTENCY_IN_PROGRESS', 'A request with this Idempotency-Key is already in progress.');
     }
 
     console.log(`[Idempotency] MISS: ${idempotencyKey} anahtarı için yeni istek işleniyor.`);

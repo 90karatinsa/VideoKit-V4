@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import promClient from 'prom-client';
 
+import { ensureRequestId, sendError } from '../http-error.js';
+
 const OPERATIONS = [
   { method: 'POST', pattern: /^\/verify$/i, name: '/verify', weight: 1 },
   { method: 'POST', pattern: /^\/stamp$/i, name: '/stamp', weight: 5 },
@@ -924,13 +926,13 @@ export const enforceReadRateLimit = async (req, res, next) => {
     if (!result.allowed) {
       const operation = getOperationContext(req);
       req.log?.warn?.({ tenantId, endpoint: operation.normalizedEndpoint, limit: limitValue, count: result.count }, '[billing] GET rate limit exceeded');
-      return res.status(429).json({ code: 'READ_RATE_LIMIT_EXCEEDED', message: 'Too many read requests. Please slow down.' });
+      return sendError(res, req, 429, 'READ_RATE_LIMIT_EXCEEDED', 'Too many read requests. Please slow down.');
     }
 
     return next();
   } catch (error) {
     req.log?.error?.({ err: error }, '[billing] Read rate limiter failure');
-    return res.status(500).json({ code: 'READ_RATE_LIMIT_FAILURE' });
+    return sendError(res, req, 500, 'READ_RATE_LIMIT_FAILURE', 'The read rate limiter is temporarily unavailable.');
   }
 };
 
@@ -955,6 +957,7 @@ export const finalizeAndLog = (req, res, next) => {
 
       const tenantId = req.tenant?.id ?? null;
       if (tenantId) {
+        const requestId = ensureRequestId(req, res);
         await dbPool.query(
           `INSERT INTO api_events (tenant_id, endpoint, event_type, status_code, request_id, metadata)
            VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -963,7 +966,7 @@ export const finalizeAndLog = (req, res, next) => {
             endpoint,
             method,
             status,
-            req.id || req.headers['x-request-id'] || null,
+            requestId,
             {
               duration_ms: durationMs,
               billable,

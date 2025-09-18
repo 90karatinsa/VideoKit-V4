@@ -18,7 +18,6 @@ import { fileURLToPath } from 'url';
 import promClient from 'prom-client';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
-import { randomUUID } from 'crypto';
 import pg from 'pg';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -32,6 +31,7 @@ import { initI18n, getLang, t } from './i18n.js';
 import createAuthRouter from './routes/auth.js';
 import { create } from "./shims/contentauth.mjs"; // c2pa create fonksiyonu için gerekli import
 import { normalizeEndpoint } from './src/core/endpoint-normalize.mjs';
+import { ensureRequestId, sendError } from './http-error.js';
 // === IMPORT BLOK SONU ===
 
 // --- İZLEME VE HATA BİLDİRİMİ BAŞLATMA ---
@@ -55,11 +55,7 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 const httpLogger = pinoHttp({
     logger,
     genReqId: function (req, res) {
-        const existingId = req.id ?? req.headers["x-request-id"] ?? req.headers["x-correlation-id"];
-        if (existingId) return existingId;
-        const id = randomUUID();
-        res.setHeader('X-Request-Id', id);
-        return id;
+        return ensureRequestId(req, res);
     },
 });
 
@@ -507,7 +503,7 @@ const idempotencyHandler = async (req, res, next) => {
         const lock = await redisConnection.set(redisKey, JSON.stringify({ status: 'in_progress' }), 'EX', 300, 'NX');
         if (!lock) {
             req.log.warn({ idempotencyKey }, `[Idempotency] Çakışma tespit edildi.`);
-            return res.status(409).json({ error: t('error_idempotency_conflict', req.lang) });
+            return sendError(res, req, 409, 'IDEMPOTENCY_CONFLICT', t('error_idempotency_conflict', req.lang));
         }
         const originalSend = res.send.bind(res);
         res.send = (body) => {
@@ -546,7 +542,7 @@ app.use('/auth', authRouter);
 
 app.post('/verify', protect, ...billingWriteChain, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
+        return sendError(res, req, 400, 'FILE_NOT_UPLOADED', t('error_file_not_uploaded', req.lang));
     }
     const { webhookUrl, webhookSecret } = req.body;
     req.log.info({ file: req.file.originalname, size: req.file.size, webhook: !!webhookUrl }, `[/verify] İstek alındı`);
@@ -566,7 +562,7 @@ app.post('/verify', protect, ...billingWriteChain, fileUpload.single('file'), wi
         res.status(202).json({ jobId: job.id });
     } catch (error) {
         req.log.error({ err: error }, '[/verify] İş kuyruğa eklenirken hata oluştu');
-        res.status(500).json({ error: t('error_job_creation_failed', req.lang) });
+        return sendError(res, req, 500, 'JOB_CREATION_FAILED', t('error_job_creation_failed', req.lang));
     } finally {
         if (!jobQueued) {
             await cleanupUploadedFile(req.file);
@@ -579,12 +575,12 @@ app.get('/jobs/:jobId', protect, ...billingReadChain, withFinalize(async (req, r
     const job = await verifyQueue.getJob(jobId);
 
     if (!job) {
-        return res.status(404).json({ error: t('error_job_not_found', req.lang) });
+        return sendError(res, req, 404, 'JOB_NOT_FOUND', t('error_job_not_found', req.lang));
     }
 
     if (job.data.tenantId !== req.tenant.id) {
         req.log.warn({ tenantId: req.tenant.id, jobOwner: job.data.tenantId, jobId }, `[AUTH] Yetkisiz iş erişimi denemesi.`);
-        return res.status(403).json({ error: t('error_forbidden_job_access', req.lang) });
+        return sendError(res, req, 403, 'FORBIDDEN_JOB_ACCESS', t('error_forbidden_job_access', req.lang));
     }
 
     const state = await job.getState();
@@ -599,11 +595,11 @@ app.get('/jobs/:jobId', protect, ...billingReadChain, withFinalize(async (req, r
 
 app.post('/stamp', protect, ...billingWriteChain, idempotencyHandler, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
+        return sendError(res, req, 400, 'FILE_NOT_UPLOADED', t('error_file_not_uploaded', req.lang));
     }
     const { author, action = 'c2pa.created', agent = 'VideoKit API v1.0', captureOnly } = req.body;
     if (!author) {
-        return res.status(400).json({ error: t('error_author_missing', req.lang) });
+        return sendError(res, req, 400, 'AUTHOR_MISSING', t('error_author_missing', req.lang));
     }
     const isCaptureOnly = captureOnly === 'true' || captureOnly === true;
     if (isCaptureOnly) {
@@ -616,7 +612,7 @@ app.post('/stamp', protect, ...billingWriteChain, idempotencyHandler, fileUpload
                     type: 'stamp', customerId: req.tenant.id, input: { fileName: req.file.originalname },
                     status: 'failed', result: `PolicyViolationError: ${errorMessage}`
                 });
-                return res.status(422).json({ error: 'PolicyViolationError', message: errorMessage });
+                return sendError(res, req, 422, 'POLICY_VIOLATION', errorMessage);
             }
         }
     }
@@ -651,15 +647,15 @@ app.post('/stamp', protect, ...billingWriteChain, idempotencyHandler, fileUpload
             const message = t(error.message, req.lang, error.data);
             req.log.warn({ err: error }, `[/stamp] Politika ihlali: ${message}`);
             await audit.append({ type: 'stamp', customerId: req.tenant.id, input: { fileName: req.file.originalname }, status: 'failed', result: `PolicyViolationError: ${message}` });
-            return res.status(403).json({ error: 'policy_violation', message });
+            return sendError(res, req, 403, 'POLICY_VIOLATION', message);
         }
         await audit.append({ type: 'stamp', customerId: req.tenant.id, input: { fileName: req.file.originalname }, status: 'failed', result: error.message });
         if (error.code === 'ENOENT') {
             req.log.error({ err: error }, '[/stamp] Hata: İmzalama için gerekli anahtar/sertifika dosyası bulunamadı.');
-            return res.status(500).json({ error: t('error_server_config_keys_missing', req.lang) });
+            return sendError(res, req, 500, 'SERVER_CONFIG_KEYS_MISSING', t('error_server_config_keys_missing', req.lang));
         }
         req.log.error({ err: error }, '[/stamp] Manifest oluşturulurken hata oluştu');
-        res.status(500).json({ error: t('error_server_error', req.lang), details: error.message });
+        return sendError(res, req, 500, 'SERVER_ERROR', t('error_server_error', req.lang), { cause: error.message });
     } finally {
         await cleanupUploadedFile(req.file);
     }
@@ -668,11 +664,11 @@ app.post('/stamp', protect, ...billingWriteChain, idempotencyHandler, fileUpload
 // === TOPLU İŞLEM ENDPOINT'LERİ ===
 app.post('/batch/upload', protect, ...billingWriteChain, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
+        return sendError(res, req, 400, 'FILE_NOT_UPLOADED', t('error_file_not_uploaded', req.lang));
     }
     const { batchId, fileId } = req.body;
     if (!batchId || !fileId) {
-        return res.status(400).json({ error: 'batchId ve fileId gereklidir.' });
+        return sendError(res, req, 400, 'BATCH_METADATA_REQUIRED', 'batchId ve fileId gereklidir.');
     }
     let jobQueued = false;
     try {
@@ -689,7 +685,7 @@ app.post('/batch/upload', protect, ...billingWriteChain, fileUpload.single('file
         res.status(202).json({ jobId: job.id });
     } catch (error) {
         req.log.error({ err: error }, '[/batch/upload] İş kuyruğa eklenirken hata oluştu');
-        res.status(500).json({ error: t('error_job_creation_failed', req.lang) });
+        return sendError(res, req, 500, 'JOB_CREATION_FAILED', t('error_job_creation_failed', req.lang));
     } finally {
         if (!jobQueued) {
             await cleanupUploadedFile(req.file);
@@ -701,11 +697,11 @@ app.get('/batch/:batchId/download', protect, ...billingReadChain, withFinalize(a
     const { batchId } = req.params;
     const jobIds = await redisConnection.smembers(`batch:${batchId}:jobs`);
     if (!jobIds || jobIds.length === 0) {
-        return res.status(404).json({ error: 'Bu batch için iş bulunamadı.' });
+        return sendError(res, req, 404, 'BATCH_JOB_NOT_FOUND', 'Bu batch için iş bulunamadı.');
     }
     const firstJob = await verifyQueue.getJob(jobIds[0]);
     if (!firstJob || firstJob.data.tenantId !== req.tenant.id) {
-        return res.status(403).json({ error: 'Bu kaynağa erişim yetkiniz yok.' });
+        return sendError(res, req, 403, 'BATCH_FORBIDDEN', 'Bu kaynağa erişim yetkiniz yok.');
     }
     const zip = new JSZip();
     const reportsFolder = zip.folder("reports");
@@ -720,7 +716,7 @@ app.get('/batch/:batchId/download', protect, ...billingReadChain, withFinalize(a
         }
     }
     if (completedCount === 0) {
-        return res.status(404).json({ error: 'İndirilecek tamamlanmış rapor bulunamadı.' });
+        return sendError(res, req, 404, 'BATCH_REPORTS_NOT_READY', 'İndirilecek tamamlanmış rapor bulunamadı.');
     }
     const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
     res.setHeader('Content-Disposition', `attachment; filename=videokit_batch_${batchId}.zip`);
@@ -740,7 +736,13 @@ app.get('/usage', protect, ...billingReadChain, withFinalize(async (req, res) =>
 app.get('/quota', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const plan = plans[req.tenant.plan];
     if (plan.monthlyQuota === null) {
-        return res.status(400).json({ error: 'This endpoint is for quota-based plans only. Check /billing for credit info.' });
+        return sendError(
+            res,
+            req,
+            400,
+            'PLAN_NOT_QUOTA_BASED',
+            'This endpoint is for quota-based plans only. Check /billing for credit info.'
+        );
     }
     const limit = plan.monthlyQuota;
     const remaining = parseInt(res.get('X-Quota-Remaining') || '0', 10);
@@ -769,11 +771,11 @@ app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res
     const tenantId = tenantIdParam || sessionTenantId;
 
     if (!tenantId) {
-        return res.status(400).json({ error: 'TENANT_REQUIRED' });
+        return sendError(res, req, 400, 'TENANT_REQUIRED', 'Tenant identifier is required.');
     }
 
     if (sessionTenantId && tenantId !== sessionTenantId) {
-        return res.status(403).json({ error: 'TENANT_MISMATCH' });
+        return sendError(res, req, 403, 'TENANT_MISMATCH', 'You are not allowed to access analytics for another tenant.');
     }
 
     const fromParam = typeof req.query.from === 'string'
@@ -786,23 +788,23 @@ app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res
     const allowedGroups = new Set(['hour', 'day']);
 
     if (!allowedGroups.has(groupByParam)) {
-        return res.status(400).json({ error: 'INVALID_GROUP_BY' });
+        return sendError(res, req, 400, 'INVALID_GROUP_BY', 'groupBy must be one of hour or day.');
     }
 
     const now = new Date();
     const toDate = toParam ? new Date(toParam) : now;
     if (Number.isNaN(toDate.getTime())) {
-        return res.status(400).json({ error: 'INVALID_TO' });
+        return sendError(res, req, 400, 'INVALID_TO', 'The provided "to" date is invalid.');
     }
 
     const defaultFrom = new Date(toDate.getTime() - (30 * 24 * 60 * 60 * 1000));
     const fromDate = fromParam ? new Date(fromParam) : defaultFrom;
     if (Number.isNaN(fromDate.getTime())) {
-        return res.status(400).json({ error: 'INVALID_FROM' });
+        return sendError(res, req, 400, 'INVALID_FROM', 'The provided "from" date is invalid.');
     }
 
     if (fromDate > toDate) {
-        return res.status(400).json({ error: 'INVALID_RANGE' });
+        return sendError(res, req, 400, 'INVALID_RANGE', 'The "from" date must be earlier than "to".');
     }
 
     const toExclusive = new Date(toDate.getTime() + 1);
@@ -912,7 +914,7 @@ app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res
         res.json(responseBody);
     } catch (error) {
         req.log.error({ err: error }, `[/analytics] Hata:`);
-        res.status(500).json({ error: 'Analitik verileri alınamadı.' });
+        return sendError(res, req, 500, 'ANALYTICS_FETCH_FAILED', 'Analitik verileri alınamadı.');
     }
 }), finalizeAfter);
 
@@ -929,7 +931,7 @@ app.get('/management/keys', protect, authorize('admin', 'developer'), async (req
     const tenantId = req.tenant?.id ?? req.user?.tenantId;
     if (!tenantId) {
         req.log.warn('[Mgmt] Tenant context missing while listing API keys.');
-        return res.status(401).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 401, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
 
     try {
@@ -938,7 +940,7 @@ app.get('/management/keys', protect, authorize('admin', 'developer'), async (req
         res.status(200).json({ keys });
     } catch (error) {
         req.log.error({ err: error, tenantId }, '[Mgmt] API key listesi alınamadı.');
-        res.status(500).json({ error: t('error_api_keys_fetch_failed', req.lang) });
+        return sendError(res, req, 500, 'API_KEYS_FETCH_FAILED', t('error_api_keys_fetch_failed', req.lang));
     }
 });
 
@@ -947,7 +949,7 @@ app.post('/management/keys', protect, authorize('admin', 'developer'), async (re
     const tenantId = req.tenant?.id ?? req.user?.tenantId;
     if (!tenantId) {
         req.log.warn('[Mgmt] Tenant context missing while creating API key.');
-        return res.status(401).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 401, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
 
     const tenantPlan = req.tenant?.plan;
@@ -957,9 +959,13 @@ app.post('/management/keys', protect, authorize('admin', 'developer'), async (re
         if (planConfig?.apiKeyLimit) {
             const existingKeyCount = await redisConnection.scard(`keys_for_tenant:${tenantId}`);
             if (existingKeyCount >= planConfig.apiKeyLimit) {
-                return res.status(429).json({
-                    error: t('error_api_key_limit_reached', req.lang, { limit: planConfig.apiKeyLimit })
-                });
+                return sendError(
+                    res,
+                    req,
+                    429,
+                    'API_KEY_LIMIT_REACHED',
+                    t('error_api_key_limit_reached', req.lang, { limit: planConfig.apiKeyLimit })
+                );
             }
         }
 
@@ -970,7 +976,7 @@ app.post('/management/keys', protect, authorize('admin', 'developer'), async (re
             // Eğer Redis'te yoksa, PostgreSQL'den alıp Redis'e yazabiliriz.
             const tenantResult = await dbPool.query('SELECT plan FROM tenants WHERE id = $1', [tenantId]);
             if (tenantResult.rows.length === 0) {
-                return res.status(404).json({ error: 'Tenant not found.' });
+                return sendError(res, req, 404, 'TENANT_NOT_FOUND', 'Tenant not found.');
             }
             await redisConnection.hset(redisTenantKey, { id: tenantId, plan: tenantResult.rows[0].plan });
         }
@@ -987,7 +993,7 @@ app.post('/management/keys', protect, authorize('admin', 'developer'), async (re
         res.status(201).json({ apiKey: newApiKey, keyId: hashApiKey(newApiKey) });
     } catch (error) {
         req.log.error({ err: error, tenantId }, '[Mgmt] Yeni API anahtarı oluşturulamadı.');
-        res.status(500).json({ error: t('error_api_key_generation_failed', req.lang) });
+        return sendError(res, req, 500, 'API_KEY_GENERATION_FAILED', t('error_api_key_generation_failed', req.lang));
     }
 });
 
@@ -997,27 +1003,27 @@ app.delete('/management/keys/:keyIdentifier', protect, authorize('admin', 'devel
 
     if (!loggedInTenantId) {
         req.log.warn('[Mgmt] Tenant context missing while deleting API key.');
-        return res.status(401).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 401, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
 
     const tenantKeys = await redisConnection.smembers(`keys_for_tenant:${loggedInTenantId}`);
     const apiKey = tenantKeys.find((candidate) => candidate === keyIdentifier || hashApiKey(candidate) === keyIdentifier);
 
     if (!apiKey) {
-        return res.status(404).json({ error: 'API key not found.' });
+        return sendError(res, req, 404, 'API_KEY_NOT_FOUND', 'API key not found.');
     }
 
     // API anahtarının hangi tenanta ait olduğunu bul
     const keyOwnerTenantId = await redisConnection.get(`api_key:${apiKey}`);
 
     if (!keyOwnerTenantId) {
-        return res.status(404).json({ error: 'API key not found.' });
+        return sendError(res, req, 404, 'API_KEY_NOT_FOUND', 'API key not found.');
     }
 
     // Kullanıcının sadece kendi anahtarını silebildiğinden emin ol
     if (keyOwnerTenantId !== loggedInTenantId) {
         req.log.warn({ loggedInTenantId, keyOwnerTenantId }, `[AUTH] Yetkisiz anahtar silme denemesi.`);
-        return res.status(403).json({ error: 'Forbidden: You can only delete your own API keys.' });
+        return sendError(res, req, 403, 'API_KEY_FORBIDDEN', 'Forbidden: You can only delete your own API keys.');
     }
 
     const pipeline = redisConnection.pipeline();
@@ -1083,11 +1089,17 @@ app.get('/management/audit-log/export', protect, authorize('admin'), async (req,
             res.setHeader('Content-Type', 'text/plain');
             res.send(cefPayload);
         } else {
-            res.status(400).json({ error: 'Desteklenmeyen format. Sadece "json" veya "cef" kullanılabilir.' });
+            return sendError(
+                res,
+                req,
+                400,
+                'AUDIT_UNSUPPORTED_FORMAT',
+                'Desteklenmeyen format. Sadece "json" veya "cef" kullanılabilir.'
+            );
         }
     } catch (error) {
         req.log.error({ err: error }, '[Mgmt] Denetim logu dışa aktarılırken hata oluştu:');
-        res.status(500).json({ error: 'Denetim logları alınamadı.' });
+        return sendError(res, req, 500, 'AUDIT_EXPORT_FAILED', 'Denetim logları alınamadı.');
     }
 });
 
@@ -1113,11 +1125,11 @@ app.post('/management/tenants/:tenantId/branding', protect, authorize('admin'), 
     const loggedInTenantId = req.tenant?.id ?? req.user?.tenantId;
     if (!loggedInTenantId || loggedInTenantId !== tenantId) {
         req.log.warn({ tenantId, loggedInTenantId }, '[Mgmt] Yetkisiz marka güncelleme denemesi.');
-        return res.status(403).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 403, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
 
     if (!primaryColor && !backgroundColor) {
-        return res.status(400).json({ error: 'En az bir marka ayarı (primaryColor, backgroundColor) gereklidir.' });
+        return sendError(res, req, 400, 'BRANDING_FIELDS_REQUIRED', 'En az bir marka ayarı (primaryColor, backgroundColor) gereklidir.');
     }
 
     const settingsToSave = {};
@@ -1134,10 +1146,10 @@ app.post('/management/tenants/:tenantId/branding/logo', protect, authorize('admi
     const loggedInTenantId = req.tenant?.id ?? req.user?.tenantId;
     if (!loggedInTenantId || loggedInTenantId !== tenantId) {
         req.log.warn({ tenantId, loggedInTenantId }, '[Mgmt] Yetkisiz logo yükleme denemesi.');
-        return res.status(403).json({ error: t('error_management_unauthorized', req.lang) });
+        return sendError(res, req, 403, 'MANAGEMENT_UNAUTHORIZED', t('error_management_unauthorized', req.lang));
     }
     if (!req.file) {
-        return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
+        return sendError(res, req, 400, 'FILE_NOT_UPLOADED', t('error_file_not_uploaded', req.lang));
     }
 
     const logoUrl = `/uploads/${req.file.filename}`;
@@ -1146,7 +1158,7 @@ app.post('/management/tenants/:tenantId/branding/logo', protect, authorize('admi
     req.log.info({ tenantId, logoUrl }, `[Mgmt] Kiracı için yeni logo yüklendi.`);
     res.status(200).json({ message: 'Logo başarıyla yüklendi.', logoUrl });
 }, (error, req, res, next) => {
-    res.status(400).json({ error: error.message });
+    return sendError(res, req, 400, 'LOGO_UPLOAD_ERROR', error.message);
 });
 
 app.use((err, req, res, next) => {
@@ -1156,12 +1168,12 @@ app.use((err, req, res, next) => {
             const message = translated && translated !== 'error_file_too_large'
                 ? translated
                 : 'Uploaded file exceeds the maximum allowed size.';
-            return res.status(413).json({ error: message });
+            return sendError(res, req, 413, 'FILE_TOO_LARGE', message);
         }
-        return res.status(400).json({ error: err.message });
+        return sendError(res, req, 400, 'UPLOAD_ERROR', err.message);
     }
     if (err?.code === 'LIMIT_UNEXPECTED_FILE') {
-        return res.status(400).json({ error: 'Unexpected file field received.' });
+        return sendError(res, req, 400, 'UNEXPECTED_FILE_FIELD', 'Unexpected file field received.');
     }
     return next(err);
 });
@@ -1169,12 +1181,19 @@ app.use((err, req, res, next) => {
 Sentry.setupExpressErrorHandler(app);
 
 app.use((err, req, res, next) => {
-    res.status(500).json({
-        error: "Beklenmeyen bir sunucu hatası oluştu.",
-        errorId: res.sentry,
-    });
+    const response = {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Beklenmeyen bir sunucu hatası oluştu.',
+        requestId: ensureRequestId(req, res),
+    };
+
+    if (res.sentry) {
+        response.details = { errorId: res.sentry };
+    }
+
+    res.status(500).json(response);
     // YENİ: Bu tekrar eden bir yanıt. Sadece bir tanesi yeterli.
-    // res.status(500).json({ ok: false, error: "internal_error" }); 
+    // res.status(500).json({ ok: false, error: "internal_error" });
 });
 
 // === ZAMANLANMIŞ GÖREVLER ===
