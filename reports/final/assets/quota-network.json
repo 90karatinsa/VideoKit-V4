@@ -1,0 +1,10 @@
+{
+  "plan": "quota-pro",
+  "plan_name": "Quota Pro",
+  "quota": {
+    "limit": 1000,
+    "used": 1200,
+    "remaining": 0,
+    "resetAt": "2025-09-22T19:56:01.747Z"
+  }
+}
