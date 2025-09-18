@@ -452,19 +452,19 @@ export const resolveTenant = async (req, res, next) => {
       if (!tenantId) {
         const apiKey = req.get('X-API-Key');
         if (!apiKey) {
-          return res.status(401).json({ code: 'AUTH_REQUIRED', message: 'X-API-Key header required.' });
+          return sendError(res, req, 403, 'TENANT_MISSING', 'Tenant context is required.');
         }
 
         billing.apiKey = apiKey;
         tenantId = await resolveTenantIdFromApiKey(apiKey, { redis, dbPool });
         if (!tenantId) {
-          return res.status(401).json({ code: 'INVALID_API_KEY', message: 'API key is not recognized.' });
+          return sendError(res, req, 401, 'AUTHENTICATION_REQUIRED', 'Authentication required.');
         }
       }
 
       tenant = await loadTenantById(tenantId, { redis, dbPool });
       if (!tenant) {
-        return res.status(404).json({ code: 'TENANT_NOT_FOUND', message: 'Tenant context could not be resolved.' });
+        return sendError(res, req, 403, 'TENANT_MISSING', 'Tenant context is required.');
       }
     }
 
@@ -488,7 +488,7 @@ export const resolveTenant = async (req, res, next) => {
     next();
   } catch (error) {
     req.log?.error?.({ err: error }, '[billing] resolveTenant failed');
-    res.status(500).json({ code: 'TENANT_RESOLUTION_FAILED' });
+    return sendError(res, req, 500, 'TENANT_RESOLUTION_FAILED', 'Tenant context could not be resolved.');
   }
 };
 

@@ -65,6 +65,7 @@ Tenant'ın mevcut faturalandırılabilir istek kullanımını döner.
 | 401   | `AUTHENTICATION_REQUIRED`   | Kimlik doğrulaması eksik veya geçersiz. |
 | 403   | `TENANT_MISSING`            | Oturum bağlamında tenant yok (koruyucu middleware'lerden gelebilir). |
 | 429   | `READ_RATE_LIMIT_EXCEEDED`  | Planın GET oran sınırı aşıldı. |
+| 500   | `TENANT_RESOLUTION_FAILED`  | Tenant bağlamı çözülemedi (iç hata). |
 | 500   | `READ_RATE_LIMIT_FAILURE`   | Okuma oranı sınırlayıcısı kullanılamıyor (geçici hata). |
 
 Tüm hata yanıtları standart hata şemasını kullanır.
@@ -145,6 +146,7 @@ Alanlar:
 | 403   | `TENANT_MISMATCH`            | Oturum tenant'ı dışında bir tenant talep edildi. |
 | 401   | `AUTHENTICATION_REQUIRED`    | Kimlik doğrulaması yok. |
 | 429   | `READ_RATE_LIMIT_EXCEEDED`   | Okuma oran sınırı aşıldı. |
+| 500   | `TENANT_RESOLUTION_FAILED`   | Tenant bağlamı çözülemedi (iç hata). |
 | 500   | `ANALYTICS_FETCH_FAILED`     | Analitik verileri alınırken beklenmeyen hata. |
 | 500   | `READ_RATE_LIMIT_FAILURE`    | Okuma oranı sınırlayıcısı başarısız oldu. |
 
