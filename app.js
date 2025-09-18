@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.currentLang = lang;
                 document.documentElement.lang = lang;
                 this.translatePage();
+                renderQuotaBanner();
             } catch (error) {
                 console.error(error);
             }
@@ -68,6 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const portalLogo = document.getElementById('portal-logo');
     const langSwitcher = document.getElementById('lang-switcher');
+
+    const quotaBanner = document.getElementById('quota-banner');
+    const quotaMessageEl = document.getElementById('quota-banner-message');
     
     const showRegisterViewLink = document.getElementById('show-register-view');
     const showLoginViewFromRegisterLink = document.getElementById('show-login-view-from-register');
@@ -87,15 +91,141 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // === Uygulama Durumu (State) ===
-    let state = {
-        isLoggedIn: false,
-        user: null,
-        tenant: null,
-        analyticsActivities: [], // CSV export için
-    };
+    function createInitialState() {
+        return {
+            isLoggedIn: false,
+            user: null,
+            tenant: null,
+            analyticsActivities: [], // CSV export için
+            quota: {
+                exceeded: false,
+                remaining: null,
+                resetAt: null,
+            },
+        };
+    }
+
+    let state = createInitialState();
 
     const AUTH_BASE_PATH = '/auth';
     const authEndpoint = (path) => `${AUTH_BASE_PATH}${path}`;
+
+    function handleQuotaPayload(payload) {
+        if (!payload || payload.code !== 'QUOTA_EXCEEDED') {
+            return false;
+        }
+        setQuotaExceeded({ remaining: payload.remaining, resetAt: payload.resetAt });
+        return true;
+    }
+
+    function updateQuotaTracking(response, payload) {
+        if (handleQuotaPayload(payload)) {
+            return true;
+        }
+
+        if (response?.ok) {
+            const remainingHeader = response.headers?.get?.('X-Quota-Remaining');
+            if (remainingHeader != null) {
+                const remaining = parseInt(remainingHeader, 10);
+                if (!Number.isNaN(remaining)) {
+                    applyQuotaFromUsage({ remaining, resetAt: state.quota?.resetAt ?? null });
+                }
+            }
+        }
+
+        return false;
+    }
+
+    function setQuotaExceeded(details = {}) {
+        const remaining = typeof details.remaining === 'number' ? details.remaining : 0;
+        const resetAt = details.resetAt ?? state.quota?.resetAt ?? null;
+        state.quota = {
+            exceeded: true,
+            remaining,
+            resetAt,
+        };
+        renderQuotaBanner();
+        updateWriteActionsDisabled();
+    }
+
+    function applyQuotaFromUsage(quota) {
+        if (!quota || typeof quota.remaining !== 'number') {
+            return;
+        }
+        const resetAt = quota.resetAt ?? state.quota?.resetAt ?? null;
+        state.quota = {
+            exceeded: quota.remaining <= 0,
+            remaining: quota.remaining,
+            resetAt,
+        };
+        renderQuotaBanner();
+        updateWriteActionsDisabled();
+    }
+
+    function resetQuotaState() {
+        state.quota = {
+            exceeded: false,
+            remaining: null,
+            resetAt: null,
+        };
+        renderQuotaBanner();
+        updateWriteActionsDisabled();
+    }
+
+    function renderQuotaBanner() {
+        if (!quotaBanner) return;
+        if (state.quota?.exceeded) {
+            const remainingText = formatQuotaRemaining(state.quota.remaining);
+            const resetText = formatQuotaReset(state.quota.resetAt);
+            if (quotaMessageEl) {
+                quotaMessageEl.textContent = i18n.t('quota_banner_message', {
+                    remaining: remainingText,
+                    resetAt: resetText,
+                });
+            }
+            quotaBanner.hidden = false;
+        } else {
+            if (quotaMessageEl) {
+                quotaMessageEl.textContent = '';
+            }
+            quotaBanner.hidden = true;
+        }
+    }
+
+    function formatQuotaRemaining(value) {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+            return '0';
+        }
+        return Math.max(0, value).toLocaleString(i18n.currentLang);
+    }
+
+    function formatQuotaReset(resetAt) {
+        if (!resetAt) {
+            return i18n.t('quota_banner_reset_unknown');
+        }
+        const date = new Date(resetAt);
+        if (Number.isNaN(date.getTime())) {
+            return i18n.t('quota_banner_reset_unknown');
+        }
+        return date.toLocaleString(i18n.currentLang, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        });
+    }
+
+    function updateWriteActionsDisabled() {
+        const disabled = Boolean(state.quota?.exceeded);
+        if (createKeyBtn) {
+            const busy = createKeyBtn.dataset.loading === 'true';
+            createKeyBtn.disabled = disabled || busy;
+        }
+        if (apiKeysListEl) {
+            apiKeysListEl.querySelectorAll('.delete-btn').forEach((btn) => {
+                const busy = btn.dataset.loading === 'true';
+                btn.disabled = disabled || busy;
+            });
+        }
+    }
 
     // === Marka Fonksiyonları ===
     const defaultBranding = {
@@ -176,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('Not logged in');
             }
         } catch (error) {
-            state.isLoggedIn = false;
+            state = createInitialState();
             const urlParams = new URLSearchParams(window.location.search);
             const resetToken = urlParams.get('resetToken');
             if (resetToken) {
@@ -185,6 +315,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 toggleAuthViews('login');
             }
             resetBranding();
+            resetQuotaState();
+            setAnalyticsLoading();
         } finally {
             // DEĞİŞİKLİK: Her durumda navigasyonun durumunu güncelle
             updateNavVisibility();
@@ -223,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         listItem.appendChild(metaContainer);
         apiKeysListEl.appendChild(listItem);
         i18n.translatePage();
+        updateWriteActionsDisabled();
     }
 
     function revealNewKey(apiKey) {
@@ -316,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         apiKeysListEl.appendChild(fragment);
         i18n.translatePage();
+        updateWriteActionsDisabled();
     }
 
     /** Panel verilerini API'den yükler */
@@ -356,8 +490,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let usageHtml = '';
             if (data.quota) {
                 usageHtml = `<p>Kullanılan İstek: ${data.quota.used} / ${data.quota.limit}</p>`;
+                applyQuotaFromUsage(data.quota);
             } else if (data.credits) {
                 usageHtml = `<p>Kalan Kredi: ${data.credits.remaining}</p>`;
+                resetQuotaState();
+            } else {
+                resetQuotaState();
             }
             usageInfoEl.innerHTML = usageHtml;
         } catch (error) {
@@ -389,6 +527,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function setAnalyticsLoading() {
+        totalCallsStat.textContent = '—';
+        successPercentage.textContent = '—';
+        successBar.style.width = '0%';
+        avgTimeStat.textContent = '—';
+        renderActivitiesPlaceholder(i18n.t('loading_text'));
+    }
+
+    function setAnalyticsError(message) {
+        totalCallsStat.textContent = '—';
+        successPercentage.textContent = '—';
+        successBar.style.width = '0%';
+        avgTimeStat.textContent = '—';
+        renderActivitiesPlaceholder(message || i18n.t('analytics_error_generic'));
+    }
+
+    function renderAnalyticsSummary(summary = {}) {
+        const totalCalls = Number(summary.totalCalls) || 0;
+        const successfulCalls = Number(summary.successfulCalls) || 0;
+        const averageTime = Number(summary.averageProcessingTime) || 0;
+
+        totalCallsStat.textContent = totalCalls.toLocaleString(i18n.currentLang);
+        const successRate = totalCalls > 0 ? (successfulCalls / totalCalls) * 100 : 0;
+        successPercentage.textContent = `${successRate.toFixed(1)}%`;
+        successBar.style.width = `${successRate}%`;
+        avgTimeStat.textContent = `${averageTime.toLocaleString(i18n.currentLang)} ms`;
+    }
+
+    function renderActivitiesPlaceholder(message) {
+        if (!activitiesTableBody) return;
+        activitiesTableBody.innerHTML = '';
+        const row = activitiesTableBody.insertRow();
+        const cell = row.insertCell(0);
+        cell.colSpan = 4;
+        cell.textContent = message;
+    }
+
+    function renderAnalyticsActivities(activities = []) {
+        if (!activitiesTableBody) return;
+        activitiesTableBody.innerHTML = '';
+        const items = Array.isArray(activities) ? activities.slice(0, 100) : [];
+        if (items.length === 0) {
+            renderActivitiesPlaceholder(i18n.t('no_activity_found'));
+            return;
+        }
+
+        items.forEach(activity => {
+            const row = activitiesTableBody.insertRow();
+            const date = new Date(activity.timestamp);
+            row.insertCell(0).textContent = Number.isNaN(date.getTime())
+                ? ''
+                : date.toLocaleString(i18n.currentLang);
+            row.insertCell(1).textContent = activity.type ?? '';
+            const statusCell = row.insertCell(2);
+            statusCell.textContent = activity.status === 'success'
+                ? i18n.t('status_success')
+                : i18n.t('status_failed');
+            statusCell.className = `status-cell ${activity.status}`;
+            row.insertCell(3).textContent = activity.duration ?? '';
+        });
+    }
+
     // === Analitik Fonksiyonları ===
     async function loadAnalyticsData() {
         if (!state.isLoggedIn) return;
@@ -397,39 +597,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = new URLSearchParams();
         if (startDate) query.append('startDate', startDate);
         if (endDate) query.append('endDate', endDate);
+        setAnalyticsLoading();
         try {
             const response = await fetch(`/analytics?${query.toString()}`, { credentials: 'include' });
-            if (!response.ok) throw new Error('Analitik verileri alınamadı.');
-            const data = await response.json();
-            state.analyticsActivities = data.activities;
-            updateAnalyticsDashboard(data);
+            const data = await response.json().catch(() => null);
+            if (updateQuotaTracking(response, data)) {
+                const message = data?.error || i18n.t('feedback_quota_exceeded');
+                throw new Error(message);
+            }
+            if (!response.ok || !data) {
+                throw new Error(data?.error || i18n.t('analytics_error_generic'));
+            }
+            state.analyticsActivities = Array.isArray(data.activities) ? data.activities : [];
+            updateAnalyticsDashboard({ summary: data.summary, activities: state.analyticsActivities });
         } catch (error) {
-            showFeedback(error.message, 'error');
+            state.analyticsActivities = [];
+            const message = error?.message || i18n.t('analytics_error_generic');
+            setAnalyticsError(message);
+            showFeedback(message, 'error');
         }
     }
 
     function updateAnalyticsDashboard({ summary, activities }) {
-        totalCallsStat.textContent = summary.totalCalls.toLocaleString(i18n.currentLang);
-        avgTimeStat.textContent = `${summary.averageProcessingTime.toLocaleString(i18n.currentLang)} ms`;
-        const successRate = summary.totalCalls > 0 ? (summary.successfulCalls / summary.totalCalls) * 100 : 0;
-        successPercentage.textContent = `${successRate.toFixed(1)}%`;
-        successBar.style.width = `${successRate}%`;
-        activitiesTableBody.innerHTML = '';
-        const activitiesToShow = activities.slice(0, 100);
-        if(activitiesToShow.length === 0) {
-            activitiesTableBody.innerHTML = `<tr><td colspan="4">${i18n.t('no_activity_found')}</td></tr>`;
-            return;
-        }
-        activitiesToShow.forEach(activity => {
-            const row = activitiesTableBody.insertRow();
-            const date = new Date(activity.timestamp);
-            row.insertCell(0).textContent = date.toLocaleString(i18n.currentLang);
-            row.insertCell(1).textContent = activity.type;
-            const statusCell = row.insertCell(2);
-            statusCell.textContent = activity.status === 'success' ? i18n.t('status_success') : i18n.t('status_failed');
-            statusCell.className = `status-cell ${activity.status}`;
-            row.insertCell(3).textContent = activity.duration;
-        });
+        renderAnalyticsSummary(summary);
+        renderAnalyticsActivities(activities);
     }
 
     function handleExportCsv() {
@@ -600,7 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {
             console.error('Logout request failed:', e);
         } finally {
-            state = { isLoggedIn: false, user: null, tenant: null, analyticsActivities: [] };
+            state = createInitialState();
             toggleAuthViews('login');
             planNameEl.textContent = '';
             usageInfoEl.innerHTML = '';
@@ -611,6 +802,8 @@ document.addEventListener('DOMContentLoaded', () => {
             hideNewKeyAlert();
             resetBranding();
             updateNavVisibility();
+            resetQuotaState();
+            setAnalyticsLoading();
         }
     }
 
@@ -618,6 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!createKeyBtn) return;
         const defaultLabel = i18n.t('create_key_button');
         createKeyBtn.textContent = i18n.t('loading_text');
+        createKeyBtn.dataset.loading = 'true';
         createKeyBtn.disabled = true;
         try {
             const response = await fetch(`/management/keys`, {
@@ -625,6 +819,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 credentials: 'include',
             });
             const data = await response.json().catch(() => null);
+            if (updateQuotaTracking(response, data)) {
+                const message = data?.error || i18n.t('feedback_quota_exceeded');
+                throw new Error(message);
+            }
             if (!response.ok) {
                 const message = data?.error || i18n.t('error_create_key_failed');
                 throw new Error(message);
@@ -642,7 +840,8 @@ document.addEventListener('DOMContentLoaded', () => {
             showFeedback(error.message, 'error');
         } finally {
             createKeyBtn.textContent = defaultLabel;
-            createKeyBtn.disabled = false;
+            createKeyBtn.dataset.loading = 'false';
+            updateWriteActionsDisabled();
         }
     }
 
@@ -664,6 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const defaultLabel = i18n.t('delete_button');
         button.textContent = i18n.t('deleting_text');
+        button.dataset.loading = 'true';
         button.disabled = true;
 
         try {
@@ -672,8 +872,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 credentials: 'include',
             });
 
+            const data = await response.json().catch(() => null);
+            if (updateQuotaTracking(response, data)) {
+                const message = data?.error || i18n.t('feedback_quota_exceeded');
+                throw new Error(message);
+            }
+
             if (!response.ok) {
-                const data = await response.json().catch(() => null);
                 const message = data?.error || i18n.t('error_delete_key_failed');
                 throw new Error(message);
             }
@@ -683,10 +888,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             showFeedback(error.message, 'error');
         } finally {
+            button.dataset.loading = 'false';
             if (button.isConnected) {
                 button.textContent = defaultLabel;
-                button.disabled = false;
             }
+            updateWriteActionsDisabled();
         }
     }
     

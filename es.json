@@ -86,5 +86,10 @@
   "analytics_table_date": "Fecha",
   "analytics_table_type": "Tipo de operación",
   "analytics_table_status": "Estado",
-  "analytics_table_duration": "Duración (ms)"
+  "analytics_table_duration": "Duración (ms)",
+  "analytics_error_generic": "No pudimos cargar los datos de analítica.",
+  "feedback_quota_exceeded": "Tu cuota del plan se ha agotado. Espera a que se restablezca o mejora tu plan.",
+  "quota_banner_title": "Cuota alcanzada",
+  "quota_banner_message": "Tu cuota del plan se ha agotado. Solicitudes restantes: {{remaining}}. Se restablece el: {{resetAt}}.",
+  "quota_banner_reset_unknown": "Desconocido"
 }

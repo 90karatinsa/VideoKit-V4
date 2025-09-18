@@ -140,6 +140,48 @@ img {
     justify-content: center;
 }
 
+.quota-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--danger);
+    box-shadow: var(--shadow-sm);
+}
+
+.quota-banner__icon {
+    font-size: 1.5rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.15);
+    flex-shrink: 0;
+}
+
+.quota-banner__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.quota-banner__title {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.quota-banner__message {
+    margin: 0;
+    color: var(--text);
+    line-height: 1.4;
+}
+
 .view-stack {
     width: min(1200px, 100%);
     display: grid;

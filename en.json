@@ -86,5 +86,10 @@
   "analytics_table_date": "Date",
   "analytics_table_type": "Operation Type",
   "analytics_table_status": "Status",
-  "analytics_table_duration": "Duration (ms)"
+  "analytics_table_duration": "Duration (ms)",
+  "analytics_error_generic": "We couldn't load the analytics data.",
+  "feedback_quota_exceeded": "Your plan quota has been exhausted. Please wait for it to reset or upgrade your plan.",
+  "quota_banner_title": "Quota Limit Reached",
+  "quota_banner_message": "Your plan quota has been exhausted. Remaining requests: {{remaining}}. Resets at: {{resetAt}}.",
+  "quota_banner_reset_unknown": "Unknown"
 }

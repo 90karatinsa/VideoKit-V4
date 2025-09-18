@@ -86,5 +86,10 @@
   "analytics_table_date": "Tarih",
   "analytics_table_type": "İşlem Türü",
   "analytics_table_status": "Durum",
-  "analytics_table_duration": "Süre (ms)"
+  "analytics_table_duration": "Süre (ms)",
+  "analytics_error_generic": "Analitik verileri alınamadı.",
+  "feedback_quota_exceeded": "Plan kotanız tükendi. Lütfen paketinizin yenilenmesini bekleyin veya yükseltin.",
+  "quota_banner_title": "Kota Limitine Ulaşıldı",
+  "quota_banner_message": "Plan kotanız tükendi. Kalan istek: {{remaining}}. Yenilenme zamanı: {{resetAt}}.",
+  "quota_banner_reset_unknown": "Bilinmiyor"
 }

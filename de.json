@@ -86,5 +86,10 @@
   "analytics_table_date": "Datum",
   "analytics_table_type": "Vorgangstyp",
   "analytics_table_status": "Status",
-  "analytics_table_duration": "Dauer (ms)"
+  "analytics_table_duration": "Dauer (ms)",
+  "analytics_error_generic": "Analysedaten konnten nicht geladen werden.",
+  "feedback_quota_exceeded": "Ihr Plan-Kontingent ist erschöpft. Bitte warten Sie auf die automatische Verlängerung oder upgraden Sie Ihren Tarif.",
+  "quota_banner_title": "Kontingent erreicht",
+  "quota_banner_message": "Ihr Plan-Kontingent ist erschöpft. Verbleibende Anfragen: {{remaining}}. Zurückgesetzt am: {{resetAt}}.",
+  "quota_banner_reset_unknown": "Unbekannt"
 }
