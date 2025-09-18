@@ -1,0 +1,889 @@
+{
+  "analytics_avg_time": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_date_end": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_date_start": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_error_generic": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_export_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_recent_activity": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_subtitle": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_success_rate": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_table_date": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_table_duration": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_table_status": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_table_type": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "analytics_total_calls": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "api_key_masked_hint": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "api_keys_empty_description": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "api_keys_subtitle": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "api_keys_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "back_to_login_link": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "company_name_label": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "confirm_delete_key": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "copy_key_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "create_key_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "dashboard_overview_label": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "dashboard_subheading": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "delete_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "deleting_text": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "dismiss_key_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "email_label": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_api_key_generation_failed": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_api_key_limit_reached": {
+    "expected": [
+      "limit"
+    ],
+    "byLocale": {
+      "de": [
+        "limit"
+      ],
+      "en": [
+        "limit"
+      ],
+      "es": [
+        "limit"
+      ],
+      "tr": [
+        "limit"
+      ]
+    }
+  },
+  "error_api_keys_fetch_failed": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_author_missing": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_create_key_failed": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_delete_key_failed": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_file_not_uploaded": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_forbidden_job_access": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_idempotency_conflict": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_job_creation_failed": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_job_not_found": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_key_copy_failed": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_management_unauthorized": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_policy_violation": {
+    "expected": [
+      "creationTime"
+    ],
+    "byLocale": {
+      "de": [
+        "creationTime"
+      ],
+      "en": [
+        "creationTime"
+      ],
+      "es": [
+        "creationTime"
+      ],
+      "tr": [
+        "creationTime"
+      ]
+    }
+  },
+  "error_server_config_keys_missing": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_server_error": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "error_tenant_context_missing": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_email_in_use": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_key_copied": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_key_deleted_success": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_login_success": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_new_key_success": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_password_updated_success": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_quota_exceeded": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_register_success": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "feedback_reset_link_sent": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "forgot_password_link": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "forgot_password_prompt": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "forgot_password_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "go_to_login_link": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "go_to_register_link": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "lang_name": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "language_switcher_label": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "loading_text": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "login_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "login_prompt_new": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "login_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "logout_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "manage_subscription_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "nav_batch_processing": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "nav_dashboard": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "new_key_notice_message": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "new_key_notice_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "new_password_label": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "no_activity_found": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "no_api_keys_yet": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "password_label": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "plan_label": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "portal_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "quota_banner_message": {
+    "expected": [
+      "remaining",
+      "resetAt"
+    ],
+    "byLocale": {
+      "de": [
+        "remaining",
+        "resetAt"
+      ],
+      "en": [
+        "remaining",
+        "resetAt"
+      ],
+      "es": [
+        "remaining",
+        "resetAt"
+      ],
+      "tr": [
+        "remaining",
+        "resetAt"
+      ]
+    }
+  },
+  "quota_banner_reset_unknown": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "quota_banner_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "register_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "register_prompt": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "register_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "reset_password_prompt": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "reset_password_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "send_reset_link_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "status_failed": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "status_success": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "subscription_info_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "tenant_display_text": {
+    "expected": [
+      "planName",
+      "tenantId"
+    ],
+    "byLocale": {
+      "de": [
+        "planName",
+        "tenantId"
+      ],
+      "en": [
+        "planName",
+        "tenantId"
+      ],
+      "es": [
+        "planName",
+        "tenantId"
+      ],
+      "tr": [
+        "planName",
+        "tenantId"
+      ]
+    }
+  },
+  "update_password_button": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  },
+  "usage_details_title": {
+    "expected": [],
+    "byLocale": {
+      "de": [],
+      "en": [],
+      "es": [],
+      "tr": []
+    }
+  }
+}
