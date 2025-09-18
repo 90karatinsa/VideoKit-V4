@@ -337,12 +337,6 @@
   },
   {
     "file": "app.js",
-    "line": 246,
-    "text": "Branding could not be fetched.",
-    "context": "if (!response.ok) throw new Error('Branding could not be fetched.');"
-  },
-  {
-    "file": "app.js",
     "line": 250,
     "text": "Failed to fetch branding:",
     "context": "console.error('Failed to fetch branding:', error);"
@@ -352,12 +346,6 @@
     "line": 281,
     "text": "#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}",
     "context": "return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;"
-  },
-  {
-    "file": "app.js",
-    "line": 306,
-    "text": "Not logged in",
-    "context": "throw new Error('Not logged in');"
   },
   {
     "file": "app.js",
@@ -385,211 +373,121 @@
   },
   {
     "file": "app.js",
-    "line": 472,
-    "text": "Abonelik bilgileri alınamadı.",
-    "context": "if (!response.ok) throw new Error('Abonelik bilgileri alınamadı.');"
-  },
-  {
-    "file": "app.js",
-    "line": 474,
-    "text": "Bilinmiyor",
-    "context": "planNameEl.textContent = data.plan_name || 'Bilinmiyor';"
-  },
-  {
-    "file": "app.js",
-    "line": 477,
-    "text": "Hata",
-    "context": "planNameEl.textContent = 'Hata';"
-  },
-  {
-    "file": "app.js",
-    "line": 487,
-    "text": "Kullanım bilgileri alınamadı.",
-    "context": "if (!response.ok) throw new Error('Kullanım bilgileri alınamadı.');"
-  },
-  {
-    "file": "app.js",
     "line": 492,
-    "text": "<p>Kullanılan İstek: ${data.quota.used} / ${data.quota.limit}</p>",
-    "context": "usageHtml = `<p>Kullanılan İstek: ${data.quota.used} / ${data.quota.limit}</p>`;"
+    "text": "<p>${i18n.t('usage_requests_text', { used: data.quota.used, limit: data.quota.limit })}</p>",
+    "context": "usageHtml = `<p>${i18n.t('usage_requests_text', { used: data.quota.used, limit: data.quota.limit })}</p>`;"
   },
   {
     "file": "app.js",
     "line": 495,
-    "text": "<p>Kalan Kredi: ${data.credits.remaining}</p>",
-    "context": "usageHtml = `<p>Kalan Kredi: ${data.credits.remaining}</p>`;"
+    "text": "<p>${i18n.t('usage_remaining_credits', { remaining: data.credits.remaining })}</p>",
+    "context": "usageHtml = `<p>${i18n.t('usage_remaining_credits', { remaining: data.credits.remaining })}</p>`;"
   },
   {
     "file": "app.js",
-    "line": 555,
+    "line": 557,
     "text": "${averageTime.toLocaleString(i18n.currentLang)} ms",
     "context": "avgTimeStat.textContent = `${averageTime.toLocaleString(i18n.currentLang)} ms`;"
   },
   {
     "file": "app.js",
-    "line": 587,
+    "line": 589,
     "text": "status-cell ${activity.status}",
     "context": "statusCell.className = `status-cell ${activity.status}`;"
   },
   {
     "file": "app.js",
-    "line": 628,
-    "text": "Dışa aktarılacak veri yok.",
-    "context": "showFeedback('Dışa aktarılacak veri yok.', 'error');"
-  },
-  {
-    "file": "app.js",
-    "line": 631,
-    "text": "Tarih",
-    "context": "const headers = ['Tarih', 'İşlem Türü', 'Durum', 'İşlem Süresi (ms)'];"
-  },
-  {
-    "file": "app.js",
-    "line": 631,
-    "text": "İşlem Türü",
-    "context": "const headers = ['Tarih', 'İşlem Türü', 'Durum', 'İşlem Süresi (ms)'];"
-  },
-  {
-    "file": "app.js",
-    "line": 631,
-    "text": "Durum",
-    "context": "const headers = ['Tarih', 'İşlem Türü', 'Durum', 'İşlem Süresi (ms)'];"
-  },
-  {
-    "file": "app.js",
-    "line": 631,
-    "text": "İşlem Süresi (ms)",
-    "context": "const headers = ['Tarih', 'İşlem Türü', 'Durum', 'İşlem Süresi (ms)'];"
-  },
-  {
-    "file": "app.js",
-    "line": 644,
+    "line": 647,
     "text": "T",
     "context": "link.setAttribute(\"download\", `videokit_analytics_${new Date().toISOString().split('T')[0]}.csv`);"
   },
   {
     "file": "app.js",
-    "line": 644,
+    "line": 647,
     "text": "videokit_analytics_${new Date().toISOString().split('T')[0]}.csv",
     "context": "link.setAttribute(\"download\", `videokit_analytics_${new Date().toISOString().split('T')[0]}.csv`);"
   },
   {
     "file": "app.js",
-    "line": 648,
-    "text": "CSV dışa aktarıldı.",
-    "context": "showFeedback('CSV dışa aktarıldı.', 'success');"
-  },
-  {
-    "file": "app.js",
-    "line": 654,
+    "line": 657,
     "text": "T",
     "context": "endDateInput.value = today.toISOString().split('T')[0];"
   },
   {
     "file": "app.js",
-    "line": 655,
+    "line": 658,
     "text": "T",
     "context": "startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];"
   },
   {
     "file": "app.js",
-    "line": 686,
+    "line": 689,
     "text": "POST",
     "context": "method: 'POST',"
   },
   {
     "file": "app.js",
-    "line": 687,
+    "line": 690,
     "text": "Content-Type",
     "context": "headers: { 'Content-Type': 'application/json' },"
   },
   {
     "file": "app.js",
-    "line": 693,
-    "text": "Giriş başarısız oldu.",
-    "context": "throw new Error(data.error || 'Giriş başarısız oldu.');"
-  },
-  {
-    "file": "app.js",
-    "line": 711,
-    "text": "Tüm alanlar zorunludur.",
-    "context": "showFeedback('Tüm alanlar zorunludur.', 'error');"
-  },
-  {
-    "file": "app.js",
-    "line": 717,
+    "line": 720,
     "text": "POST",
     "context": "method: 'POST',"
   },
   {
     "file": "app.js",
-    "line": 718,
+    "line": 721,
     "text": "Content-Type",
     "context": "headers: { 'Content-Type': 'application/json' },"
   },
   {
     "file": "app.js",
-    "line": 724,
-    "text": "Kayıt başarısız oldu.",
-    "context": "throw new Error(data.error || 'Kayıt başarısız oldu.');"
-  },
-  {
-    "file": "app.js",
-    "line": 739,
+    "line": 742,
     "text": "POST",
     "context": "method: 'POST',"
   },
   {
     "file": "app.js",
-    "line": 740,
+    "line": 743,
     "text": "Content-Type",
     "context": "headers: { 'Content-Type': 'application/json' },"
   },
   {
     "file": "app.js",
-    "line": 760,
-    "text": "Sıfırlama tokenı bulunamadı.",
-    "context": "showFeedback('Sıfırlama tokenı bulunamadı.', 'error');"
-  },
-  {
-    "file": "app.js",
-    "line": 764,
-    "text": "Şifre en az 8 karakter olmalıdır.",
-    "context": "showFeedback('Şifre en az 8 karakter olmalıdır.', 'error');"
-  },
-  {
-    "file": "app.js",
-    "line": 770,
+    "line": 773,
     "text": "POST",
     "context": "method: 'POST',"
   },
   {
     "file": "app.js",
-    "line": 771,
+    "line": 774,
     "text": "Content-Type",
     "context": "headers: { 'Content-Type': 'application/json' },"
   },
   {
     "file": "app.js",
-    "line": 790,
+    "line": 793,
     "text": "POST",
     "context": "await fetch(authEndpoint('/logout'), { method: 'POST', credentials: 'include' });"
   },
   {
     "file": "app.js",
-    "line": 792,
+    "line": 795,
     "text": "Logout request failed:",
     "context": "console.error('Logout request failed:', e);"
   },
   {
     "file": "app.js",
-    "line": 818,
+    "line": 821,
     "text": "POST",
     "context": "method: 'POST',"
   },
   {
     "file": "app.js",
-    "line": 871,
+    "line": 874,
     "text": "DELETE",
     "context": "method: 'DELETE',"
   },
@@ -711,7 +609,7 @@
     "file": "batch.html",
     "line": 6,
     "text": "Toplu Doğrulama - VideoKit Portalı",
-    "context": "<title>Toplu Doğrulama - VideoKit Portalı</title>"
+    "context": "<title data-i18n=\"batch_page_title\">Toplu Doğrulama - VideoKit Portalı</title>"
   },
   {
     "file": "batch.html",
@@ -723,31 +621,31 @@
     "file": "batch.html",
     "line": 18,
     "text": "VideoKit Müşteri Portalı",
-    "context": "<h1>VideoKit Müşteri Portalı</h1>"
+    "context": "<h1 data-i18n=\"portal_title\">VideoKit Müşteri Portalı</h1>"
   },
   {
     "file": "batch.html",
     "line": 23,
     "text": "Panel",
-    "context": "<a href=\"index.html\">Panel</a>"
+    "context": "<a href=\"index.html\" data-i18n=\"nav_dashboard\">Panel</a>"
   },
   {
     "file": "batch.html",
     "line": 24,
     "text": "Toplu İşlem",
-    "context": "<a href=\"batch.html\">Toplu İşlem</a>"
+    "context": "<a href=\"batch.html\" data-i18n=\"nav_batch_processing\">Toplu İşlem</a>"
   },
   {
     "file": "batch.html",
     "line": 28,
     "text": "Dil seçimi",
-    "context": "<label for=\"lang-switcher\" class=\"sr-only\">Dil seçimi</label>"
+    "context": "<label for=\"lang-switcher\" class=\"sr-only\" data-i18n=\"language_switcher_label\">Dil seçimi</label>"
   },
   {
     "file": "batch.html",
     "line": 30,
     "text": "Türkçe",
-    "context": "<option value=\"tr\">Türkçe</option>"
+    "context": "<option value=\"tr\" data-i18n=\"language_option_tr\">Türkçe</option>"
   },
   {
     "file": "batch.html",
@@ -759,7 +657,7 @@
     "file": "batch.html",
     "line": 31,
     "text": "English",
-    "context": "<option value=\"en\">English</option>"
+    "context": "<option value=\"en\" data-i18n=\"language_option_en\">English</option>"
   },
   {
     "file": "batch.html",
@@ -771,7 +669,7 @@
     "file": "batch.html",
     "line": 32,
     "text": "Deutsch",
-    "context": "<option value=\"de\">Deutsch</option>"
+    "context": "<option value=\"de\" data-i18n=\"language_option_de\">Deutsch</option>"
   },
   {
     "file": "batch.html",
@@ -783,7 +681,7 @@
     "file": "batch.html",
     "line": 33,
     "text": "Español",
-    "context": "<option value=\"es\">Español</option>"
+    "context": "<option value=\"es\" data-i18n=\"language_option_es\">Español</option>"
   },
   {
     "file": "batch.html",
@@ -793,37 +691,49 @@
   },
   {
     "file": "batch.html",
-    "line": 48,
-    "text": "Lütfen ana panelden giriş yapın...",
-    "context": "<span id=\"tenant-info-display\">Lütfen ana panelden giriş yapın...</span>"
+    "line": 34,
+    "text": "Pseudo-Locale (QA)",
+    "context": "<option value=\"en-XA\" data-i18n=\"language_option_en_xa\">Pseudo-Locale (QA)</option>"
   },
   {
     "file": "batch.html",
-    "line": 52,
+    "line": 34,
+    "text": "en-XA",
+    "context": "value attribute"
+  },
+  {
+    "file": "batch.html",
+    "line": 49,
+    "text": "Lütfen ana panelden giriş yapın...",
+    "context": "<span id=\"tenant-info-display\" data-i18n=\"batch_login_prompt\">Lütfen ana panelden giriş yapın...</span>"
+  },
+  {
+    "file": "batch.html",
+    "line": 53,
     "text": "Toplu C2PA Doğrulama",
     "context": "<h2 data-i18n=\"batch_title\">Toplu C2PA Doğrulama</h2>"
   },
   {
     "file": "batch.html",
-    "line": 63,
+    "line": 64,
     "text": "İşlem Kuyruğu",
     "context": "<h3 data-i18n=\"batch_queue_title\">İşlem Kuyruğu</h3>"
   },
   {
     "file": "batch.html",
-    "line": 77,
+    "line": 78,
     "text": "Dosya Adı",
     "context": "<th data-i18n=\"file_name\">Dosya Adı</th>"
   },
   {
     "file": "batch.html",
-    "line": 78,
+    "line": 79,
     "text": "Durum",
     "context": "<th data-i18n=\"status\">Durum</th>"
   },
   {
     "file": "batch.html",
-    "line": 79,
+    "line": 80,
     "text": "Sonuç",
     "context": "<th data-i18n=\"result\">Sonuç</th>"
   },
@@ -1623,7 +1533,7 @@
     "file": "index.html",
     "line": 6,
     "text": "VideoKit Müşteri Portalı",
-    "context": "<title>VideoKit Müşteri Portalı</title>"
+    "context": "<title data-i18n=\"portal_title\">VideoKit Müşteri Portalı</title>"
   },
   {
     "file": "index.html",
@@ -1659,7 +1569,7 @@
     "file": "index.html",
     "line": 24,
     "text": "Türkçe",
-    "context": "<option value=\"tr\">Türkçe</option>"
+    "context": "<option value=\"tr\" data-i18n=\"language_option_tr\">Türkçe</option>"
   },
   {
     "file": "index.html",
@@ -1671,7 +1581,7 @@
     "file": "index.html",
     "line": 25,
     "text": "English",
-    "context": "<option value=\"en\">English</option>"
+    "context": "<option value=\"en\" data-i18n=\"language_option_en\">English</option>"
   },
   {
     "file": "index.html",
@@ -1683,7 +1593,7 @@
     "file": "index.html",
     "line": 26,
     "text": "Deutsch",
-    "context": "<option value=\"de\">Deutsch</option>"
+    "context": "<option value=\"de\" data-i18n=\"language_option_de\">Deutsch</option>"
   },
   {
     "file": "index.html",
@@ -1695,7 +1605,7 @@
     "file": "index.html",
     "line": 27,
     "text": "Español",
-    "context": "<option value=\"es\">Español</option>"
+    "context": "<option value=\"es\" data-i18n=\"language_option_es\">Español</option>"
   },
   {
     "file": "index.html",
@@ -1705,361 +1615,373 @@
   },
   {
     "file": "index.html",
-    "line": 36,
+    "line": 28,
+    "text": "Pseudo-Locale (QA)",
+    "context": "<option value=\"en-XA\" data-i18n=\"language_option_en_xa\">Pseudo-Locale (QA)</option>"
+  },
+  {
+    "file": "index.html",
+    "line": 28,
+    "text": "en-XA",
+    "context": "value attribute"
+  },
+  {
+    "file": "index.html",
+    "line": 37,
     "text": "!",
     "context": "<div class=\"quota-banner__icon\" aria-hidden=\"true\">!</div>"
   },
   {
     "file": "index.html",
-    "line": 44,
+    "line": 45,
     "text": "Giriş Yap",
     "context": "<h2 data-i18n=\"login_title\">Giriş Yap</h2>"
   },
   {
     "file": "index.html",
-    "line": 45,
+    "line": 46,
     "text": "Hesabınıza erişmek için giriş yapın.",
     "context": "<p data-i18n=\"login_prompt_new\">Hesabınıza erişmek için giriş yapın.</p>"
   },
   {
     "file": "index.html",
-    "line": 48,
+    "line": 49,
     "text": "E-posta Adresi",
     "context": "<label for=\"login-email\" data-i18n=\"email_label\">E-posta Adresi</label>"
   },
   {
     "file": "index.html",
-    "line": 52,
+    "line": 53,
     "text": "Şifre",
     "context": "<label for=\"login-password\" data-i18n=\"password_label\">Şifre</label>"
   },
   {
     "file": "index.html",
-    "line": 55,
+    "line": 56,
     "text": "Giriş Yap",
     "context": "<button type=\"submit\" data-i18n=\"login_button\">Giriş Yap</button>"
   },
   {
     "file": "index.html",
-    "line": 57,
+    "line": 58,
     "text": "Şifrenizi mi unuttunuz?",
     "context": "<p class=\"auth-toggle-link\"><a href=\"#\" id=\"show-forgot-password-view\" class=\"forgot-password-link\" data-i18n=\"forgot_password_link\">Şifrenizi mi unuttunuz?</a></p>"
   },
   {
     "file": "index.html",
-    "line": 58,
+    "line": 59,
     "text": "Hesabınız yok mu? Kaydolun.",
     "context": "<p class=\"auth-toggle-link\"><a href=\"#\" id=\"show-register-view\" data-i18n=\"go_to_register_link\">Hesabınız yok mu? Kaydolun.</a></p>"
   },
   {
     "file": "index.html",
-    "line": 64,
+    "line": 65,
     "text": "Yeni Hesap Oluştur",
     "context": "<h2 data-i18n=\"register_title\">Yeni Hesap Oluştur</h2>"
   },
   {
     "file": "index.html",
-    "line": 65,
+    "line": 66,
     "text": "Platformu denemek için yeni bir hesap oluşturun.",
     "context": "<p data-i18n=\"register_prompt\">Platformu denemek için yeni bir hesap oluşturun.</p>"
   },
   {
     "file": "index.html",
-    "line": 68,
+    "line": 69,
     "text": "Şirket Adı",
     "context": "<label for=\"company-name\" data-i18n=\"company_name_label\">Şirket Adı</label>"
   },
   {
     "file": "index.html",
-    "line": 72,
+    "line": 73,
     "text": "E-posta Adresi",
     "context": "<label for=\"register-email\" data-i18n=\"email_label\">E-posta Adresi</label>"
   },
   {
     "file": "index.html",
-    "line": 76,
+    "line": 77,
     "text": "Şifre",
     "context": "<label for=\"register-password\" data-i18n=\"password_label\">Şifre</label>"
   },
   {
     "file": "index.html",
-    "line": 79,
+    "line": 80,
     "text": "Kaydol",
     "context": "<button type=\"submit\" data-i18n=\"register_button\">Kaydol</button>"
   },
   {
     "file": "index.html",
-    "line": 81,
+    "line": 82,
     "text": "Zaten bir hesabınız var mı? Giriş yapın.",
     "context": "<p class=\"auth-toggle-link\"><a href=\"#\" id=\"show-login-view-from-register\" data-i18n=\"go_to_login_link\">Zaten bir hesabınız var mı? Giriş yapın.</a></p>"
   },
   {
     "file": "index.html",
-    "line": 87,
+    "line": 88,
     "text": "Şifremi Unuttum",
     "context": "<h2 data-i18n=\"forgot_password_title\">Şifremi Unuttum</h2>"
   },
   {
     "file": "index.html",
-    "line": 88,
+    "line": 89,
     "text": "Şifre sıfırlama linki göndermek için e-posta adresinizi girin.",
     "context": "<p data-i18n=\"forgot_password_prompt\">Şifre sıfırlama linki göndermek için e-posta adresinizi girin.</p>"
   },
   {
     "file": "index.html",
-    "line": 91,
+    "line": 92,
     "text": "E-posta Adresi",
     "context": "<label for=\"forgot-email\" data-i18n=\"email_label\">E-posta Adresi</label>"
   },
   {
     "file": "index.html",
-    "line": 94,
+    "line": 95,
     "text": "Sıfırlama Linki Gönder",
     "context": "<button type=\"submit\" data-i18n=\"send_reset_link_button\">Sıfırlama Linki Gönder</button>"
   },
   {
     "file": "index.html",
-    "line": 96,
+    "line": 97,
     "text": "Giriş ekranına geri dön.",
     "context": "<p class=\"auth-toggle-link\"><a href=\"#\" id=\"show-login-view-from-forgot\" data-i18n=\"back_to_login_link\">Giriş ekranına geri dön.</a></p>"
   },
   {
     "file": "index.html",
-    "line": 102,
+    "line": 103,
     "text": "Yeni Şifre Oluştur",
     "context": "<h2 data-i18n=\"reset_password_title\">Yeni Şifre Oluştur</h2>"
   },
   {
     "file": "index.html",
-    "line": 103,
+    "line": 104,
     "text": "Lütfen yeni şifrenizi girin. En az 8 karakter olmalıdır.",
     "context": "<p data-i18n=\"reset_password_prompt\">Lütfen yeni şifrenizi girin. En az 8 karakter olmalıdır.</p>"
   },
   {
     "file": "index.html",
-    "line": 106,
+    "line": 107,
     "text": "Yeni Şifre",
     "context": "<label for=\"reset-password\" data-i18n=\"new_password_label\">Yeni Şifre</label>"
   },
   {
     "file": "index.html",
-    "line": 109,
+    "line": 110,
     "text": "Şifreyi Güncelle",
     "context": "<button type=\"submit\" data-i18n=\"update_password_button\">Şifreyi Güncelle</button>"
   },
   {
     "file": "index.html",
-    "line": 117,
+    "line": 118,
     "text": "Genel Bakış",
     "context": "<span class=\"dashboard-eyebrow\" data-i18n=\"dashboard_overview_label\">Genel Bakış</span>"
   },
   {
     "file": "index.html",
-    "line": 119,
+    "line": 120,
     "text": "Aboneliğinizi, kullanımınızı ve API anahtarlarınızı buradan yönetin.",
     "context": "<p class=\"dashboard-description\" data-i18n=\"dashboard_subheading\">Aboneliğinizi, kullanımınızı ve API anahtarlarınızı buradan yönetin.</p>"
   },
   {
     "file": "index.html",
-    "line": 122,
+    "line": 123,
     "text": "Çıkış Yap",
     "context": "<button type=\"button\" id=\"logout-button\" class=\"button button--ghost\" data-i18n=\"logout_button\">Çıkış Yap</button>"
   },
   {
     "file": "index.html",
-    "line": 129,
+    "line": 130,
     "text": "Abonelik Bilgileri",
     "context": "<h3 data-i18n=\"subscription_info_title\">Abonelik Bilgileri</h3>"
   },
   {
     "file": "index.html",
-    "line": 130,
+    "line": 131,
     "text": "Aboneliği Yönet (Stripe)",
     "context": "<a href=\"#\" target=\"_blank\" class=\"button button--ghost button--small\" data-i18n=\"manage_subscription_button\">Aboneliği Yönet (Stripe)</a>"
   },
   {
     "file": "index.html",
-    "line": 133,
+    "line": 134,
     "text": "Plan:",
     "context": "<p><strong data-i18n=\"plan_label\">Plan:</strong> <span id=\"plan-name\" data-i18n=\"loading_text\">Yükleniyor...</span></p>"
   },
   {
     "file": "index.html",
-    "line": 133,
+    "line": 134,
     "text": "Yükleniyor...",
     "context": "<p><strong data-i18n=\"plan_label\">Plan:</strong> <span id=\"plan-name\" data-i18n=\"loading_text\">Yükleniyor...</span></p>"
   },
   {
     "file": "index.html",
-    "line": 139,
+    "line": 140,
     "text": "Kullanım Detayları",
     "context": "<h3 data-i18n=\"usage_details_title\">Kullanım Detayları</h3>"
   },
   {
     "file": "index.html",
-    "line": 142,
+    "line": 143,
     "text": "Yükleniyor...",
     "context": "<p data-i18n=\"loading_text\">Yükleniyor...</p>"
   },
   {
     "file": "index.html",
-    "line": 149,
+    "line": 150,
     "text": "API Anahtarları Yönetimi",
     "context": "<h3 data-i18n=\"api_keys_title\">API Anahtarları Yönetimi</h3>"
   },
   {
     "file": "index.html",
-    "line": 150,
+    "line": 151,
     "text": "Aktif anahtarlarınızı yönetin ve gerekirse iptal edin.",
     "context": "<p class=\"card-subtitle\" data-i18n=\"api_keys_subtitle\">Aktif anahtarlarınızı yönetin ve gerekirse iptal edin.</p>"
   },
   {
     "file": "index.html",
-    "line": 152,
+    "line": 153,
     "text": "Yeni Anahtar Oluştur",
     "context": "<button type=\"button\" id=\"create-key-btn\" data-i18n=\"create_key_button\">Yeni Anahtar Oluştur</button>"
   },
   {
     "file": "index.html",
-    "line": 157,
+    "line": 158,
     "text": "Yeni API anahtarınız hazır",
     "context": "<strong data-i18n=\"new_key_notice_title\">Yeni API anahtarınız hazır</strong>"
   },
   {
     "file": "index.html",
-    "line": 158,
+    "line": 159,
     "text": "Bu anahtarı hemen kopyalayın. Güvenlik nedeniyle bu ekrandan ayrıldığınızda anahtar tekrar gösterilmeyecektir.",
     "context": "<p data-i18n=\"new_key_notice_message\">Bu anahtarı hemen kopyalayın. Güvenlik nedeniyle bu ekrandan ayrıldığınızda anahtar tekrar gösterilmeyecektir.</p>"
   },
   {
     "file": "index.html",
-    "line": 165,
+    "line": 166,
     "text": "Anahtarı kopyala",
     "context": "<button type=\"button\" class=\"button button--ghost\" id=\"copy-new-key\" data-i18n=\"copy_key_button\">Anahtarı kopyala</button>"
   },
   {
     "file": "index.html",
-    "line": 166,
+    "line": 167,
     "text": "Gizle",
     "context": "<button type=\"button\" class=\"button button--ghost\" id=\"dismiss-new-key\" data-i18n=\"dismiss_key_button\">Gizle</button>"
   },
   {
     "file": "index.html",
-    "line": 173,
+    "line": 174,
     "text": "Henüz bir API anahtarınız yok.",
     "context": "<span data-i18n=\"no_api_keys_yet\">Henüz bir API anahtarınız yok.</span>"
   },
   {
     "file": "index.html",
-    "line": 174,
+    "line": 175,
     "text": "İlk anahtarınızı oluşturmak için yukarıdaki butonu kullanın.",
     "context": "<small data-i18n=\"api_keys_empty_description\">İlk anahtarınızı oluşturmak için yukarıdaki butonu kullanın.</small>"
   },
   {
     "file": "index.html",
-    "line": 184,
+    "line": 185,
     "text": "Kullanım Analitikleri",
     "context": "<h3 data-i18n=\"analytics_title\">Kullanım Analitikleri</h3>"
   },
   {
     "file": "index.html",
-    "line": 185,
+    "line": 186,
     "text": "Son işlemlerinizin performansını inceleyin.",
     "context": "<p class=\"card-subtitle\" data-i18n=\"analytics_subtitle\">Son işlemlerinizin performansını inceleyin.</p>"
   },
   {
     "file": "index.html",
-    "line": 190,
+    "line": 191,
     "text": "Başlangıç",
     "context": "<label for=\"start-date\" data-i18n=\"analytics_date_start\">Başlangıç</label>"
   },
   {
     "file": "index.html",
-    "line": 192,
+    "line": 193,
     "text": "Bitiş",
     "context": "<label for=\"end-date\" data-i18n=\"analytics_date_end\">Bitiş</label>"
   },
   {
     "file": "index.html",
-    "line": 195,
+    "line": 196,
     "text": "CSV Olarak Dışa Aktar",
     "context": "<button type=\"button\" id=\"export-csv-btn\" class=\"button button--ghost\" data-i18n=\"analytics_export_button\">CSV Olarak Dışa Aktar</button>"
   },
   {
     "file": "index.html",
-    "line": 199,
+    "line": 200,
     "text": "Toplam API Çağrısı",
     "context": "<h4 data-i18n=\"analytics_total_calls\">Toplam API Çağrısı</h4>"
   },
   {
     "file": "index.html",
-    "line": 200,
+    "line": 201,
     "text": "0",
     "context": "<p id=\"total-calls-stat\">0</p>"
   },
   {
     "file": "index.html",
-    "line": 203,
+    "line": 204,
     "text": "Başarı Oranı",
     "context": "<h4 data-i18n=\"analytics_success_rate\">Başarı Oranı</h4>"
   },
   {
     "file": "index.html",
-    "line": 208,
+    "line": 209,
     "text": "0%",
     "context": "<span id=\"success-percentage\">0%</span>"
   },
   {
     "file": "index.html",
-    "line": 212,
+    "line": 213,
     "text": "Ort. İşlem Süresi",
     "context": "<h4 data-i18n=\"analytics_avg_time\">Ort. İşlem Süresi</h4>"
   },
   {
     "file": "index.html",
-    "line": 213,
+    "line": 214,
     "text": "0 ms",
     "context": "<p id=\"avg-time-stat\">0 ms</p>"
   },
   {
     "file": "index.html",
-    "line": 217,
+    "line": 218,
     "text": "Son Aktiviteler",
     "context": "<h4 data-i18n=\"analytics_recent_activity\">Son Aktiviteler</h4>"
   },
   {
     "file": "index.html",
-    "line": 221,
+    "line": 222,
     "text": "Tarih",
     "context": "<th data-i18n=\"analytics_table_date\">Tarih</th>"
   },
   {
     "file": "index.html",
-    "line": 222,
+    "line": 223,
     "text": "İşlem Türü",
     "context": "<th data-i18n=\"analytics_table_type\">İşlem Türü</th>"
   },
   {
     "file": "index.html",
-    "line": 223,
+    "line": 224,
     "text": "Durum",
     "context": "<th data-i18n=\"analytics_table_status\">Durum</th>"
   },
   {
     "file": "index.html",
-    "line": 224,
+    "line": 225,
     "text": "Süre (ms)",
     "context": "<th data-i18n=\"analytics_table_duration\">Süre (ms)</th>"
   },
   {
     "file": "index.html",
-    "line": 242,
+    "line": 243,
     "text": "Güvenlik için anahtarın sadece başlangıcı ve sonu görüntülenir.",
     "context": "<small data-i18n=\"api_key_masked_hint\">Güvenlik için anahtarın sadece başlangıcı ve sonu görüntülenir.</small>"
   },
   {
     "file": "index.html",
-    "line": 245,
+    "line": 246,
     "text": "Sil",
     "context": "<button type=\"button\" class=\"delete-btn\" data-i18n=\"delete_button\">Sil</button>"
   },
@@ -3028,6 +2950,78 @@
     "line": 172,
     "text": "POST",
     "context": "method: 'POST',"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 8,
+    "text": "Expected an array in ${reportPath}",
+    "context": "throw new Error(`Expected an array in ${reportPath}`);"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 29,
+    "text": "Failed to parse JSON from ${filePath}: ${error.message}",
+    "context": "throw new Error(`Failed to parse JSON from ${filePath}: ${error.message}`);"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 34,
+    "text": "No locale JSON files found.",
+    "context": "throw new Error('No locale JSON files found.');"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 78,
+    "text": "${(ratio * 100).toFixed(2)}%",
+    "context": "return `${(ratio * 100).toFixed(2)}%`;"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 90,
+    "text": "${JSON.stringify(jsonReport, null, 2)}\\n",
+    "context": "await fs.writeFile(outputJsonPath, `${JSON.stringify(jsonReport, null, 2)}\\n`, 'utf8');"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 93,
+    "text": "# i18n Coverage Report",
+    "context": "lines.push('# i18n Coverage Report');"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 95,
+    "text": "Total used keys: ${usedKeyCount}",
+    "context": "lines.push(`Total used keys: ${usedKeyCount}`);"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 97,
+    "text": "| Locale | Coverage | Missing | Unused | Total keys |",
+    "context": "lines.push('| Locale | Coverage | Missing | Unused | Total keys |');"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 101,
+    "text": "| ${stat.locale} | ${formatPercentage(stat.coverageRatio)} | ${stat.missingCount} | ${stat.unusedCount} | ${stat.totalKeys} |",
+    "context": "`| ${stat.locale} | ${formatPercentage(stat.coverageRatio)} | ${stat.missingCount} | ${stat.unusedCount} | ${stat.totalKeys} |`,"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 105,
+    "text": "## Orphan used keys",
+    "context": "lines.push('## Orphan used keys');"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 108,
+    "text": "- None",
+    "context": "lines.push('- None');"
+  },
+  {
+    "file": "scripts/generate-i18n-coverage.mjs",
+    "line": 111,
+    "text": "- ${key}",
+    "context": "lines.push(`- ${key}`);"
   },
   {
     "file": "seed-db.js",
@@ -4446,6 +4440,144 @@
     "context": "console.error('Test sırasında bir hata oluştu:', error.message);"
   },
   {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 13,
+    "text": "text/html; charset=utf-8",
+    "context": "['.html', 'text/html; charset=utf-8'],"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 14,
+    "text": "application/javascript; charset=utf-8",
+    "context": "['.js', 'application/javascript; charset=utf-8'],"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 15,
+    "text": "text/css; charset=utf-8",
+    "context": "['.css', 'text/css; charset=utf-8'],"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 16,
+    "text": "application/json; charset=utf-8",
+    "context": "['.json', 'application/json; charset=utf-8'],"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 25,
+    "text": "Content-Type",
+    "context": "'Content-Type': 'application/json; charset=utf-8'"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 25,
+    "text": "application/json; charset=utf-8",
+    "context": "'Content-Type': 'application/json; charset=utf-8'"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 51,
+    "text": "login view with pseudo-locale",
+    "context": "test('login view with pseudo-locale', async ({ page }) => {"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 53,
+    "text": "Not logged in",
+    "context": "route.fulfill({ status: 401, headers: jsonHeaders, body: JSON.stringify({ error: 'Not logged in' }) });"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 61,
+    "text": "register view with pseudo-locale",
+    "context": "test('register view with pseudo-locale', async ({ page }) => {"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 63,
+    "text": "Not logged in",
+    "context": "route.fulfill({ status: 401, headers: jsonHeaders, body: JSON.stringify({ error: 'Not logged in' }) });"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 73,
+    "text": "dashboard view with mocked data",
+    "context": "test('dashboard view with mocked data', async ({ page }) => {"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 82,
+    "text": "analytics detail card",
+    "context": "test('analytics detail card', async ({ page }) => {"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 93,
+    "text": "batch view after authentication",
+    "context": "test('batch view after authentication', async ({ page }) => {"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 119,
+    "text": "Forbidden",
+    "context": "res.end('Forbidden');"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 128,
+    "text": "Not found",
+    "context": "res.end('Not found');"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 139,
+    "text": "Content-Type",
+    "context": "res.writeHead(200, { 'Content-Type': contentType });"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 143,
+    "text": "Server error",
+    "context": "res.end('Server error');"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 161,
+    "text": "Overflow QA Localization Suite Tenant",
+    "context": "name: 'Overflow QA Localization Suite Tenant'"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 170,
+    "text": "Overflow QA Owner",
+    "context": "name: 'Overflow QA Owner',"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 193,
+    "text": "X-Quota-Remaining",
+    "context": "'X-Quota-Remaining': '124'"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 196,
+    "text": "Overflow Enterprise Pseudo-Locale Preview",
+    "context": "plan_name: 'Overflow Enterprise Pseudo-Locale Preview',"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 265,
+    "text": "Overflow QA Localization Suite Tenant",
+    "context": "name: 'Overflow QA Localization Suite Tenant'"
+  },
+  {
+    "file": "tests/e2e/i18n-screenshots.spec.mjs",
+    "line": 274,
+    "text": "Batch Operations Specialist",
+    "context": "name: 'Batch Operations Specialist'"
+  },
+  {
     "file": "tool.html",
     "line": 11,
     "text": "VK",
@@ -5638,6 +5770,156 @@
     "line": 666,
     "text": "VideoKit markası ve logosu tescillidir. Tüm hakları saklıdır.",
     "context": "const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>VideoKit Doğrulama Raporu</title><style>body{font-family:system-ui,sans-serif;margin:40px;color:#0f172a;}.header{display:flex;align-items:center;gap:12px;margin-bottom:24px}.logo{width:40px;height:40px;border-radius:8px;background:#111827;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px}.title{font-size:24px;font-weight:700}.subtitle{font-size:14px;color:#64748b}.section{margin-top:28px;page-break-inside:avoid;}.section h3{margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:6px;}table{width:100%;border-collapse:collapse;font-size:14px;}td,th{padding:8px 12px;text-align:left;vertical-align:top;}.kv-table td{border-bottom:1px solid #f0f0f0;}.kv-table strong{color:#334155;}.details-table td{width:50%;border-bottom:1px solid #f0f0f0;}.codes-table{font-size:12px;}.codes-table th{background:#f6f8fa;}.codes-table td{border:1px solid #e5e7eb;}.codes-table code{font-family:monospace;background:#eef;padding:2px 4px;border-radius:4px;word-break:break-all;}.legal{font-size:12px;color:#6b7280;margin-top:40px;}@media print{body{margin:0}}</style></head><body onload=\"focus();print();setTimeout(()=>close(),600)\"><div class=\"header\"><div class=\"logo\">VK</div><div><div class=\"title\">VideoKit Doğrulama Raporu</div><div class=\"subtitle\">Content Credentials (C2PA) Doğrulama Çıktısı</div></div></div><div class=\"section\"><table class=\"kv-table\"><tr><td><strong>Dosya Adı</strong></td><td>${safe(report.file?.name)}</td></tr><tr><td><strong>Boyut</strong></td><td>${fmtSize(report.file?.size)}</td></tr><tr><td><strong>Genel Durum</strong></td><td><strong>${safe(report.verdict?.toUpperCase())}</strong></td></tr><tr><td><strong>Mesaj</strong></td><td>${safe(report.message)}</td></tr><tr><td><strong>Süre</strong></td><td>${report.ms!=null?report.ms+' ms':'—'}</td></tr><tr><td><strong>İmza Zamanı (UTC)</strong></td><td>${safe(report.summary?.time)}</td></tr><tr><td><strong>İmza Sahibi</strong></td><td>${safe(report.summary?.issuer)}</td></tr><tr><td><strong>Başlık</strong></td><td>${safe(report.summary?.title)}</td></tr><tr><td><strong>Yazılım</strong></td><td>${safe(report.summary?.claimGenerator)}</td></tr><tr><td><strong>Dosya Kimliği (SHA‑256)</strong></td><td style=\"font-family:monospace;word-break:break-all;\">${safe(report.fileHash)}</td></tr><tr><td><strong>Onay Tarihi (UTC)</strong></td><td>${approval}</td></tr></table></div>${getValidationDetailsHtml()}${getCodesTableHtml()}<div class=\"legal\">Bu rapor VideoKit tarafından otomatik olarak oluşturulmuştur ve yalnızca bilgilendirme amaçlıdır. Hukuki bir tavsiye niteliği taşımaz.<br><br>VideoKit markası ve logosu tescillidir. Tüm hakları saklıdır.</div></body></html>`;"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 1,
+    "text": "use strict",
+    "context": "'use strict';"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 40,
+    "text": "Literal",
+    "context": "if (node.type === 'Literal' && typeof node.value === 'string') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 44,
+    "text": "TemplateLiteral",
+    "context": "if (node.type === 'TemplateLiteral' && node.expressions.length === 0) {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 64,
+    "text": "CallExpression",
+    "context": "if (!node || node.type !== 'CallExpression') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 69,
+    "text": "ChainExpression",
+    "context": "if (callee.type === 'ChainExpression') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 73,
+    "text": "Identifier",
+    "context": "if (callee.type === 'Identifier') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 77,
+    "text": "MemberExpression",
+    "context": "if (callee.type === 'MemberExpression') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 90,
+    "text": "ChainExpression",
+    "context": "if (member.type === 'ChainExpression') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 94,
+    "text": "MemberExpression",
+    "context": "if (member.type !== 'MemberExpression') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 104,
+    "text": "Literal",
+    "context": "if (property.type === 'Literal' && typeof property.value === 'string') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 110,
+    "text": "Identifier",
+    "context": "if (property.type === 'Identifier') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 135,
+    "text": "JSXIdentifier",
+    "context": "const attributeName = nameNode.type === 'JSXIdentifier' ? nameNode.name : null;"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 148,
+    "text": "Literal",
+    "context": "if (node.value.type === 'Literal') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 154,
+    "text": "JSXExpressionContainer",
+    "context": "node.value.type === 'JSXExpressionContainer' &&"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 181,
+    "text": "ChainExpression",
+    "context": "if (callee.type === 'ChainExpression') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 185,
+    "text": "MemberExpression",
+    "context": "if (callee.type !== 'MemberExpression') {"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 212,
+    "text": "disallow raw string literals in UI contexts without i18n",
+    "context": "description: 'disallow raw string literals in UI contexts without i18n',"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 213,
+    "text": "Best Practices",
+    "context": "category: 'Best Practices',"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 217,
+    "text": "UI text must use translation helpers instead of raw string literals.",
+    "context": "noRawString: 'UI text must use translation helpers instead of raw string literals.',"
+  },
+  {
+    "file": "tools/eslint-rules/no-ui-literals.js",
+    "line": 231,
+    "text": "JSXAttribute",
+    "context": "if (node.parent && node.parent.type === 'JSXAttribute') {"
+  },
+  {
+    "file": "tools/run-i18n-audit.mjs",
+    "line": 22,
+    "text": "${command} ${args.join(' ')} exited with code ${code}",
+    "context": "reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`));"
+  },
+  {
+    "file": "tools/run-i18n-audit.mjs",
+    "line": 39,
+    "text": "- ${locale}: ${keys.join(', ')}",
+    "context": "lines.push(`  - ${locale}: ${keys.join(', ')}`);"
+  },
+  {
+    "file": "tools/run-i18n-audit.mjs",
+    "line": 61,
+    "text": "Translation coverage below 100%.\\n${details}",
+    "context": "throw new Error(`Translation coverage below 100%.\\n${details}`);"
+  },
+  {
+    "file": "tools/run-i18n-audit.mjs",
+    "line": 65,
+    "text": "Translation audit found orphan used keys: ${orphanUsedKeys.join(', ')}",
+    "context": "throw new Error(`Translation audit found orphan used keys: ${orphanUsedKeys.join(', ')}`);"
+  },
+  {
+    "file": "tools/run-i18n-audit.mjs",
+    "line": 68,
+    "text": "✅ Translation coverage is 100% for all locales.",
+    "context": "console.log('✅ Translation coverage is 100% for all locales.');"
   },
   {
     "file": "tracing.js",
@@ -7898,7 +8180,7 @@
   {
     "file": "__summary__",
     "line": 0,
-    "text": "Total lines: 10844; Files scanned: 39",
+    "text": "Total lines: 11600; Files scanned: 43",
     "context": "scan summary"
   }
 ]

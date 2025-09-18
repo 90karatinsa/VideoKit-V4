@@ -424,24 +424,6 @@
       "tr": []
     }
   },
-  "error_tenant_context_missing": {
-    "expected": [],
-    "byLocale": {
-      "de": [],
-      "en": [],
-      "es": [],
-      "tr": []
-    }
-  },
-  "feedback_email_in_use": {
-    "expected": [],
-    "byLocale": {
-      "de": [],
-      "en": [],
-      "es": [],
-      "tr": []
-    }
-  },
   "feedback_key_copied": {
     "expected": [],
     "byLocale": {
@@ -452,15 +434,6 @@
     }
   },
   "feedback_key_deleted_success": {
-    "expected": [],
-    "byLocale": {
-      "de": [],
-      "en": [],
-      "es": [],
-      "tr": []
-    }
-  },
-  "feedback_login_success": {
     "expected": [],
     "byLocale": {
       "de": [],
@@ -551,15 +524,6 @@
     }
   },
   "go_to_register_link": {
-    "expected": [],
-    "byLocale": {
-      "de": [],
-      "en": [],
-      "es": [],
-      "tr": []
-    }
-  },
-  "lang_name": {
     "expected": [],
     "byLocale": {
       "de": [],
