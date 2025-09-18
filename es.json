@@ -85,6 +85,7 @@
   "language_option_en": "Inglés",
   "language_option_de": "Alemán",
   "language_option_es": "Español",
+  "language_option_en_xa": "Pseudo-Locale (QA)",
   "dashboard_overview_label": "Resumen",
   "dashboard_subheading": "Administra tu suscripción, uso y claves API desde un solo lugar.",
   "api_keys_subtitle": "Gestiona las claves que tienen acceso a tus APIs.",
