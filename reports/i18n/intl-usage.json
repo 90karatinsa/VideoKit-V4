@@ -1,0 +1,43 @@
+{
+  "intl_usage": [
+    {
+      "file": "app.js",
+      "line": 199,
+      "function": "Number.prototype.toLocaleString",
+      "locale_argument": "i18n.currentLang",
+      "notes": "Formats remaining quota numbers before rendering the quota banner."
+    },
+    {
+      "file": "app.js",
+      "line": 210,
+      "function": "Date.prototype.toLocaleString",
+      "locale_argument": "i18n.currentLang",
+      "options": {
+        "dateStyle": "medium",
+        "timeStyle": "short"
+      },
+      "notes": "Builds the quota reset date label shown in the quota banner."
+    },
+    {
+      "file": "app.js",
+      "line": 553,
+      "function": "Number.prototype.toLocaleString",
+      "locale_argument": "i18n.currentLang",
+      "notes": "Formats the total API call count in the analytics summary."
+    },
+    {
+      "file": "app.js",
+      "line": 557,
+      "function": "Number.prototype.toLocaleString",
+      "locale_argument": "i18n.currentLang",
+      "notes": "Formats the average processing time value displayed in analytics."
+    },
+    {
+      "file": "app.js",
+      "line": 583,
+      "function": "Date.prototype.toLocaleString",
+      "locale_argument": "i18n.currentLang",
+      "notes": "Formats each activity timestamp inside the analytics activity table."
+    }
+  ]
+}
