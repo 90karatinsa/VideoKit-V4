@@ -1,85 +1,15 @@
 {
   "missing": {
-    "de": [
-      "batch_download_zip",
-      "batch_drop_hint",
-      "batch_queue_title",
-      "batch_title",
-      "error_file_too_large",
-      "error_generic_server",
-      "file_name",
-      "result",
-      "status"
-    ],
-    "en": [
-      "batch_download_zip",
-      "batch_drop_hint",
-      "batch_queue_title",
-      "batch_title",
-      "error_file_too_large",
-      "error_generic_server",
-      "file_name",
-      "result",
-      "status"
-    ],
-    "es": [
-      "batch_download_zip",
-      "batch_drop_hint",
-      "batch_queue_title",
-      "batch_title",
-      "error_file_too_large",
-      "error_generic_server",
-      "file_name",
-      "result",
-      "status"
-    ],
-    "tr": [
-      "batch_download_zip",
-      "batch_drop_hint",
-      "batch_queue_title",
-      "batch_title",
-      "error_file_too_large",
-      "error_generic_server",
-      "file_name",
-      "result",
-      "status"
-    ]
+    "de": [],
+    "en": [],
+    "es": [],
+    "tr": []
   },
   "unused": {
-    "de": [
-      "lang_name",
-      "feedback_login_success",
-      "feedback_email_in_use",
-      "error_tenant_context_missing"
-    ],
-    "en": [
-      "lang_name",
-      "feedback_login_success",
-      "feedback_email_in_use",
-      "error_tenant_context_missing"
-    ],
-    "es": [
-      "lang_name",
-      "feedback_login_success",
-      "feedback_email_in_use",
-      "error_tenant_context_missing"
-    ],
-    "tr": [
-      "lang_name",
-      "feedback_login_success",
-      "feedback_email_in_use",
-      "error_tenant_context_missing"
-    ]
+    "de": [],
+    "en": [],
+    "es": [],
+    "tr": []
   },
-  "orphan_used_keys": [
-    "batch_download_zip",
-    "batch_drop_hint",
-    "batch_queue_title",
-    "batch_title",
-    "error_file_too_large",
-    "error_generic_server",
-    "file_name",
-    "result",
-    "status"
-  ]
+  "orphan_used_keys": []
 }
