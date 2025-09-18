@@ -1,27 +1,109 @@
 import vault from 'node-vault';
 import dotenv from 'dotenv';
+import { z } from 'zod';
 
 // .env dosyasındaki değişkenleri process.env'e yükle
 dotenv.config();
 
+const booleanFromEnv = (options = { required: true }) =>
+  z.preprocess((value) => {
+    if (value === undefined || value === null || value === '') {
+      return options.required ? value : undefined;
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true') {
+        return true;
+      }
+
+      if (normalized === 'false') {
+        return false;
+      }
+    }
+
+    return value;
+  }, options.required ? z.boolean() : z.boolean().optional());
+
+const envSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(['development', 'sandbox', 'production', 'test'])
+      .default('development'),
+    DATABASE_URL: z
+      .string({ required_error: 'DATABASE_URL ortam değişkeni zorunludur.' })
+      .min(1, 'DATABASE_URL ortam değişkeni boş olamaz.'),
+    REDIS_URL: z
+      .string({ required_error: 'REDIS_URL ortam değişkeni zorunludur.' })
+      .min(1, 'REDIS_URL ortam değişkeni boş olamaz.'),
+    DEFAULT_PLAN_LIMIT: z.coerce
+      .number({ invalid_type_error: 'DEFAULT_PLAN_LIMIT sayısal bir değer olmalıdır.' })
+      .int('DEFAULT_PLAN_LIMIT tam sayı olmalıdır.')
+      .nonnegative('DEFAULT_PLAN_LIMIT negatif olamaz.'),
+    BILLING_ENFORCEMENT: booleanFromEnv(),
+    ANALYTICS_LOGGING: booleanFromEnv(),
+    STORAGE_TTL_DAYS: z.coerce
+      .number({ invalid_type_error: 'STORAGE_TTL_DAYS sayısal bir değer olmalıdır.' })
+      .int('STORAGE_TTL_DAYS tam sayı olmalıdır.')
+      .positive('STORAGE_TTL_DAYS 0\'dan büyük olmalıdır.')
+      .default(30),
+    VAULT_ADDR: z
+      .string()
+      .url('VAULT_ADDR geçerli bir URL olmalıdır.')
+      .optional(),
+    VAULT_TOKEN: z.string().optional(),
+    MANAGEMENT_KEY: z.string().optional(),
+    JWT_SECRET: z.string().optional(),
+    JWT_EXPIRES_IN: z.string().optional(),
+    EMAIL_HOST: z.string().optional(),
+    EMAIL_PORT: z.coerce
+      .number({ invalid_type_error: 'EMAIL_PORT sayısal bir değer olmalıdır.' })
+      .int('EMAIL_PORT tam sayı olmalıdır.')
+      .positive('EMAIL_PORT 0\'dan büyük olmalıdır.')
+      .optional(),
+    EMAIL_SECURE: booleanFromEnv({ required: false }),
+    EMAIL_USER: z.string().optional(),
+    EMAIL_PASS: z.string().optional(),
+  })
+  .passthrough();
+
+const envResult = envSchema.safeParse(process.env);
+
+if (!envResult.success) {
+  const formattedErrors = envResult.error.errors
+    .map((issue) => `${issue.path.join('.') || 'environment'}: ${issue.message}`)
+    .join('; ');
+
+  console.error('[Config] HATA: Ortam değişkenleri doğrulanamadı. Uygulama sonlandırılıyor.');
+  console.error(`[Config] Ayrıntılar: ${formattedErrors}`);
+  process.exit(1);
+}
+
+const env = envResult.data;
+
 // Uygulama genelinde kullanılacak yapılandırma ve sırlar
 const config = {
   isInitialized: false,
-  isSandbox: process.env.NODE_ENV === 'sandbox',
+  isSandbox: env.NODE_ENV === 'sandbox',
+  defaults: {
+    planLimit: env.DEFAULT_PLAN_LIMIT,
+    billingEnforcement: env.BILLING_ENFORCEMENT,
+    analyticsLogging: env.ANALYTICS_LOGGING,
+  },
   storage: {
-    ttlDays: parseInt(process.env.STORAGE_TTL_DAYS, 10) || 30,
+    ttlDays: env.STORAGE_TTL_DAYS,
   },
   vault: {
-    address: process.env.VAULT_ADDR || 'http://127.0.0.1:8200',
-    token: process.env.VAULT_TOKEN,
+    address: env.VAULT_ADDR || 'http://127.0.0.1:8200',
+    token: env.VAULT_TOKEN,
   },
   // Veritabanı bağlantı bilgisi
   database: {
-    connectionString: process.env.DATABASE_URL,
+    connectionString: env.DATABASE_URL,
   },
   // JWT ayarları
   jwt: {
-      expiresIn: '30d',
+    expiresIn: env.JWT_EXPIRES_IN || '30d',
   },
   secrets: {}, // Vault'tan veya ortam değişkenlerinden çekilen sırlar burada saklanacak
 };
@@ -35,27 +117,21 @@ export async function initialize() {
     return;
   }
 
-  // Veritabanı bağlantı dizesinin varlığını kontrol et
-  if (!config.database.connectionString) {
-      console.error('[Config] HATA: DATABASE_URL ortam değişkeni ayarlanmamış. Uygulama başlatılamıyor.');
-      process.exit(1);
-  }
-
   // Vault kullanımı opsiyonel, token yoksa atla ama logla
   if (!config.vault.token) {
     console.warn('[Config] UYARI: VAULT_TOKEN ayarlanmamış. Sırlar ortam değişkenlerinden alınacak.');
-    
+
     // Gerekli sırları ortam değişkenlerinden (veya varsayılanlardan) al
     config.secrets = {
-      redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
-      managementKey: process.env.MANAGEMENT_KEY || 'SUPER_SECRET_MANAGEMENT_KEY',
-      jwtSecret: process.env.JWT_SECRET || 'SUPER_SECRET_JWT_KEY_REPLACE_IN_PROD',
+      redisUrl: env.REDIS_URL,
+      managementKey: env.MANAGEMENT_KEY || 'SUPER_SECRET_MANAGEMENT_KEY',
+      jwtSecret: env.JWT_SECRET || 'SUPER_SECRET_JWT_KEY_REPLACE_IN_PROD',
       email: {
-        host: process.env.EMAIL_HOST,
-        port: parseInt(process.env.EMAIL_PORT, 10) || 587,
-        secure: process.env.EMAIL_SECURE === 'true',
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        host: env.EMAIL_HOST,
+        port: env.EMAIL_PORT || 587,
+        secure: env.EMAIL_SECURE ?? false,
+        user: env.EMAIL_USER,
+        pass: env.EMAIL_PASS,
       },
     };
 
@@ -85,16 +161,20 @@ export async function initialize() {
 
     // Alınan sırları merkezi config nesnesine ata
     config.secrets = {
-      redisUrl: redisSecret?.data?.data?.url || process.env.REDIS_URL,
+      redisUrl: redisSecret?.data?.data?.url || env.REDIS_URL,
       hsmPin: hsmSecret?.data?.data?.pin,
       privateKey: fileKeysSecret?.data?.data?.privateKey,
       certificate: fileKeysSecret?.data?.data?.certificate,
-      managementKey: mgmtSecret?.data?.data?.key || 'SUPER_SECRET_MANAGEMENT_KEY',
-      jwtSecret: jwtSecret?.data?.data?.secret || process.env.JWT_SECRET,
+      managementKey: mgmtSecret?.data?.data?.key || env.MANAGEMENT_KEY || 'SUPER_SECRET_MANAGEMENT_KEY',
+      jwtSecret: jwtSecret?.data?.data?.secret || env.JWT_SECRET,
       email: {
         host: emailSecret?.data?.data?.host,
-        port: parseInt(emailSecret?.data?.data?.port, 10) || 587,
-        secure: emailSecret?.data?.data?.secure === 'true', // Vault string saklar
+        port: parseInt(emailSecret?.data?.data?.port, 10) || env.EMAIL_PORT || 587,
+        secure:
+          emailSecret?.data?.data?.secure === 'true'
+          || emailSecret?.data?.data?.secure === true
+          || env.EMAIL_SECURE
+          || false, // Vault string saklar
         user: emailSecret?.data?.data?.user,
         pass: emailSecret?.data?.data?.pass, // SendGrid, vb. için API Key
       },

@@ -50,7 +50,8 @@
     "pino-http": "^10.1.0",
     "prom-client": "^15.1.2",
     "uuid": "^13.0.0",
-    "ws": "^8.17.0"
+    "ws": "^8.17.0",
+    "zod": "^4.1.9"
   },
   "author": "VideoKit Engineering",
   "license": "ISC",
