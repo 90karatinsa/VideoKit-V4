@@ -333,7 +333,57 @@ const plans = {
 // --- Auth & Billing Middleware ---
 const authMiddleware = createAuthMiddleware({ dbPool, config });
 const { protect, authorize } = authMiddleware;
-const billingMiddleware = createBillingMiddleware(dbPool, redisConnection, plans);
+const [resolveTenant, startTimer, enforceQuota, finalizeAndLog] = createBillingMiddleware({
+    dbPool,
+    redis: redisConnection,
+    logger,
+});
+
+const attachFinalizeOnce = (req, res) => {
+    if (req.billing?.__billingFinalizeAttached) {
+        return;
+    }
+
+    finalizeAndLog(req, res);
+
+    if (!req.billing) {
+        req.billing = {};
+    }
+
+    req.billing.__billingFinalizeAttached = true;
+};
+
+const resolveTenantWithFinalize = (req, res, next) => {
+    attachFinalizeOnce(req, res);
+    return resolveTenant(req, res, next);
+};
+
+const billingReadChain = [resolveTenantWithFinalize, startTimer];
+const billingWriteChain = [...billingReadChain, enforceQuota];
+
+const withFinalize = (handler) => async (req, res, next) => {
+    attachFinalizeOnce(req, res);
+
+    try {
+        await handler(req, res, next);
+    } catch (error) {
+        return next(error);
+    }
+
+    return next();
+};
+
+const finalizeAfter = (req, res, next) => {
+    if (req.billing?.__billingFinalizeAttached) {
+        return next();
+    }
+
+    finalizeAndLog(req, res, next);
+
+    if (req.billing) {
+        req.billing.__billingFinalizeAttached = true;
+    }
+};
 
 const hashApiKey = (apiKey) => crypto.createHash('sha256').update(apiKey).digest('hex');
 
@@ -480,7 +530,7 @@ const authRouter = createAuthRouter({
 
 app.use('/auth', authRouter);
 
-app.post('/verify', protect, billingMiddleware, fileUpload.single('file'), async (req, res) => {
+app.post('/verify', protect, ...billingWriteChain, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
     }
@@ -508,9 +558,9 @@ app.post('/verify', protect, billingMiddleware, fileUpload.single('file'), async
             await cleanupUploadedFile(req.file);
         }
     }
-});
+}), finalizeAfter);
 
-app.get('/jobs/:jobId', protect, billingMiddleware, async (req, res) => {
+app.get('/jobs/:jobId', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const { jobId } = req.params;
     const job = await verifyQueue.getJob(jobId);
 
@@ -531,9 +581,9 @@ app.get('/jobs/:jobId', protect, billingMiddleware, async (req, res) => {
         response.error = job.failedReason;
     }
     res.status(200).json(response);
-});
+}), finalizeAfter);
 
-app.post('/stamp', protect, billingMiddleware, idempotencyHandler, fileUpload.single('file'), async (req, res) => {
+app.post('/stamp', protect, ...billingWriteChain, idempotencyHandler, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
     }
@@ -599,10 +649,10 @@ app.post('/stamp', protect, billingMiddleware, idempotencyHandler, fileUpload.si
     } finally {
         await cleanupUploadedFile(req.file);
     }
-});
+}), finalizeAfter);
 
 // === TOPLU İŞLEM ENDPOINT'LERİ ===
-app.post('/batch/upload', protect, billingMiddleware, fileUpload.single('file'), async (req, res) => {
+app.post('/batch/upload', protect, ...billingWriteChain, fileUpload.single('file'), withFinalize(async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: t('error_file_not_uploaded', req.lang) });
     }
@@ -631,9 +681,9 @@ app.post('/batch/upload', protect, billingMiddleware, fileUpload.single('file'),
             await cleanupUploadedFile(req.file);
         }
     }
-});
+}), finalizeAfter);
 
-app.get('/batch/:batchId/download', protect, billingMiddleware, async (req, res) => {
+app.get('/batch/:batchId/download', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const { batchId } = req.params;
     const jobIds = await redisConnection.smembers(`batch:${batchId}:jobs`);
     if (!jobIds || jobIds.length === 0) {
@@ -662,18 +712,18 @@ app.get('/batch/:batchId/download', protect, billingMiddleware, async (req, res)
     res.setHeader('Content-Disposition', `attachment; filename=videokit_batch_${batchId}.zip`);
     res.setHeader('Content-Type', 'application/zip');
     res.send(zipBuffer);
-});
+}), finalizeAfter);
 
 // === KULLANIM VE FATURALANDIRMA ENDPOINT'LERİ (OTURUM KORUMALI) ===
-app.get('/usage', protect, billingMiddleware, async (req, res) => {
+app.get('/usage', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const tenantId = req.tenant.id;
     const date = new Date();
     const monthKey = `usage:${tenantId}:${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
     const usage = await redisConnection.get(monthKey) || 0;
     res.status(200).json({ requests_used: parseInt(usage, 10) });
-});
+}), finalizeAfter);
 
-app.get('/quota', protect, billingMiddleware, async (req, res) => {
+app.get('/quota', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const plan = plans[req.tenant.plan];
     if (plan.monthlyQuota === null) {
         return res.status(400).json({ error: 'This endpoint is for quota-based plans only. Check /billing for credit info.' });
@@ -682,9 +732,9 @@ app.get('/quota', protect, billingMiddleware, async (req, res) => {
     const remaining = parseInt(res.get('X-Quota-Remaining') || '0', 10);
     const used = limit - remaining;
     res.status(200).json({ plan: req.tenant.plan, quota_limit: limit, quota_used: used, quota_remaining: remaining });
-});
+}), finalizeAfter);
 
-app.get('/billing', protect, billingMiddleware, async (req, res) => {
+app.get('/billing', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const plan = plans[req.tenant.plan];
     const response = { plan: req.tenant.plan, plan_name: plan.name };
     if (plan.monthlyQuota !== null) {
@@ -696,10 +746,10 @@ app.get('/billing', protect, billingMiddleware, async (req, res) => {
         response.credits = { remaining: remainingCredits };
     }
     res.status(200).json(response);
-});
+}), finalizeAfter);
 
 // === ANALİTİK ENDPOINT'İ (OTURUM KORUMALI) ===
-app.get('/analytics', protect, billingMiddleware, async (req, res) => {
+app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res) => {
     const tenantId = req.tenant.id; // Artık req.tenant üzerinden geliyor
     const { startDate, endDate } = req.query;
 
@@ -749,7 +799,7 @@ app.get('/analytics', protect, billingMiddleware, async (req, res) => {
         req.log.error({ err: error }, `[/analytics] Hata:`);
         res.status(500).json({ error: 'Analitik verileri alınamadı.' });
     }
-});
+}), finalizeAfter);
 
 // === PORTAL İÇİN YÖNETİM ENDPOINT'LERİ (OTURUM VE ROL KORUMALI) ===
 
