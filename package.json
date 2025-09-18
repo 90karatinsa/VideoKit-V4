@@ -18,7 +18,8 @@
     "test:email": "node -r dotenv/config test-email.js",
     "job:flush-usage": "node jobs/flush-usage.mjs",
     "job:rollup-analytics": "node jobs/rollup-analytics.mjs",
-    "job:purge": "node jobs/purge.mjs"
+    "job:purge": "node jobs/purge.mjs",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
     "@contentauth/toolkit": "^0.13.12",
@@ -58,6 +59,21 @@
   },
   "author": "VideoKit Engineering",
   "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "moduleFileExtensions": [
+      "js",
+      "mjs"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.mjs"
+    ]
+  },
   "overrides": {
     "@opentelemetry/api": "1.9.0",
     "@opentelemetry/semantic-conventions": "1.28.0",
