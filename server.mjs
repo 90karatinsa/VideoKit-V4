@@ -31,6 +31,7 @@ import *as audit from './videokit-audit.js';
 import { initI18n, getLang, t } from './i18n.js';
 import createAuthRouter from './routes/auth.js';
 import { create } from "./shims/contentauth.mjs"; // c2pa create fonksiyonu için gerekli import
+import { normalizeEndpoint } from './src/core/endpoint-normalize.mjs';
 // === IMPORT BLOK SONU ===
 
 // --- İZLEME VE HATA BİLDİRİMİ BAŞLATMA ---
@@ -750,51 +751,142 @@ app.get('/billing', protect, ...billingReadChain, withFinalize(async (req, res) 
 
 // === ANALİTİK ENDPOINT'İ (OTURUM KORUMALI) ===
 app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res) => {
-    const tenantId = req.tenant.id; // Artık req.tenant üzerinden geliyor
-    const { startDate, endDate } = req.query;
+    const sessionTenantId = req.tenant?.id;
+    const tenantIdParam = typeof req.query.tenantId === 'string' ? req.query.tenantId.trim() : null;
+    const tenantId = tenantIdParam || sessionTenantId;
+
+    if (!tenantId) {
+        return res.status(400).json({ error: 'TENANT_REQUIRED' });
+    }
+
+    if (sessionTenantId && tenantId !== sessionTenantId) {
+        return res.status(403).json({ error: 'TENANT_MISMATCH' });
+    }
+
+    const fromParam = typeof req.query.from === 'string' ? req.query.from : null;
+    const toParam = typeof req.query.to === 'string' ? req.query.to : null;
+    const groupByParam = typeof req.query.groupBy === 'string' ? req.query.groupBy.toLowerCase() : 'day';
+    const allowedGroups = new Set(['hour', 'day']);
+
+    if (!allowedGroups.has(groupByParam)) {
+        return res.status(400).json({ error: 'INVALID_GROUP_BY' });
+    }
+
+    const now = new Date();
+    const toDate = toParam ? new Date(toParam) : now;
+    if (Number.isNaN(toDate.getTime())) {
+        return res.status(400).json({ error: 'INVALID_TO' });
+    }
+
+    const defaultFrom = new Date(toDate.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const fromDate = fromParam ? new Date(fromParam) : defaultFrom;
+    if (Number.isNaN(fromDate.getTime())) {
+        return res.status(400).json({ error: 'INVALID_FROM' });
+    }
+
+    if (fromDate > toDate) {
+        return res.status(400).json({ error: 'INVALID_RANGE' });
+    }
+
+    const toExclusive = new Date(toDate.getTime() + 1);
+    const fromIso = fromDate.toISOString();
+    const toIso = toExclusive.toISOString();
 
     try {
-        const date = new Date();
-        const monthKey = `usage:${tenantId}:${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
-        const totalCalls = parseInt(await redisConnection.get(monthKey) || '0', 10);
+        const totalsResult = await dbPool.query(`
+            SELECT
+                date_trunc($4::text, occurred_at) AS bucket,
+                COUNT(*)::bigint AS total,
+                COUNT(*) FILTER (WHERE status_code BETWEEN 200 AND 299)::bigint AS success_count,
+                COUNT(*) FILTER (WHERE status_code BETWEEN 400 AND 499)::bigint AS errors_4xx,
+                COUNT(*) FILTER (WHERE status_code BETWEEN 500 AND 599)::bigint AS errors_5xx
+            FROM api_events
+            WHERE tenant_id = $1
+              AND occurred_at >= $2::timestamptz
+              AND occurred_at < $3::timestamptz
+            GROUP BY bucket
+            ORDER BY bucket ASC;
+        `, [tenantId, fromIso, toIso, groupByParam]);
 
-        const activities = [];
-        let successfulCalls = 0;
-        let totalDuration = 0;
-        const end = endDate ? new Date(endDate) : new Date();
-        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(end.getDate() - 30));
+        const totals = totalsResult.rows.map((row) => ({
+            bucket: row.bucket instanceof Date ? row.bucket.toISOString() : new Date(row.bucket).toISOString(),
+            total: Number(row.total || 0),
+            success: Number(row.success_count || 0),
+            errors4xx: Number(row.errors_4xx || 0),
+            errors5xx: Number(row.errors_5xx || 0),
+        }));
 
-        for (let i = 0; i < totalCalls; i++) {
-            const timestamp = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-            const isSuccess = Math.random() > 0.1;
-            const duration = Math.floor(800 + Math.random() * 2000);
+        const aggregate = totals.reduce((acc, row) => {
+            acc.total += row.total;
+            acc.success += row.success;
+            acc.errors4xx += row.errors4xx;
+            acc.errors5xx += row.errors5xx;
+            return acc;
+        }, { total: 0, success: 0, errors4xx: 0, errors5xx: 0 });
 
-            if (isSuccess) successfulCalls++;
-            totalDuration += duration;
+        const latencyResult = await dbPool.query(`
+            WITH durations AS (
+                SELECT (metadata->>'duration_ms')::numeric AS value
+                FROM api_events
+                WHERE tenant_id = $1
+                  AND occurred_at >= $2::timestamptz
+                  AND occurred_at < $3::timestamptz
+                  AND (metadata->>'duration_ms') ~ '^\\d+(?:\\.\\d+)?$'
+            )
+            SELECT
+                AVG(value) AS avg_duration,
+                PERCENTILE_DISC(0.95) WITHIN GROUP (ORDER BY value) AS p95_duration
+            FROM durations;
+        `, [tenantId, fromIso, toIso]);
 
-            activities.push({
-                timestamp: timestamp.toISOString(),
-                type: Math.random() > 0.5 ? '/verify' : '/stamp',
-                status: isSuccess ? 'success' : 'failed',
-                duration,
-            });
+        const latencyRow = latencyResult.rows[0] || {};
+        const latency = {
+            avg: latencyRow.avg_duration != null ? Number(latencyRow.avg_duration) : null,
+            p95: latencyRow.p95_duration != null ? Number(latencyRow.p95_duration) : null,
+        };
+
+        const topEndpointsResult = await dbPool.query(`
+            SELECT endpoint, COUNT(*)::bigint AS count
+            FROM api_events
+            WHERE tenant_id = $1
+              AND occurred_at >= $2::timestamptz
+              AND occurred_at < $3::timestamptz
+            GROUP BY endpoint
+            ORDER BY count DESC
+            LIMIT 20;
+        `, [tenantId, fromIso, toIso]);
+
+        const endpointAggregates = new Map();
+        for (const row of topEndpointsResult.rows) {
+            const rawEndpoint = typeof row.endpoint === 'string' ? row.endpoint : '/';
+            let normalized;
+            try {
+                normalized = normalizeEndpoint(rawEndpoint);
+            } catch (error) {
+                req.log?.warn?.({ err: error, endpoint: rawEndpoint }, 'Endpoint normalization failed, using raw value.');
+                normalized = rawEndpoint || '/';
+            }
+            const current = endpointAggregates.get(normalized) || 0;
+            endpointAggregates.set(normalized, current + Number(row.count || 0));
         }
 
-        activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const topEndpoints = Array.from(endpointAggregates.entries())
+            .map(([endpoint, count]) => ({ endpoint, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
 
-        const failedCalls = totalCalls - successfulCalls;
-        const averageProcessingTime = totalCalls > 0 ? Math.round(totalDuration / totalCalls) : 0;
-
-        res.json({
-            summary: {
-                totalCalls,
-                successfulCalls,
-                failedCalls,
-                averageProcessingTime,
+        const responseBody = {
+            totals,
+            successRate: aggregate.total > 0 ? aggregate.success / aggregate.total : 0,
+            errors: {
+                '4xx': aggregate.errors4xx,
+                '5xx': aggregate.errors5xx,
             },
-            activities: activities,
-        });
+            latency,
+            topEndpoints,
+        };
 
+        res.json(responseBody);
     } catch (error) {
         req.log.error({ err: error }, `[/analytics] Hata:`);
         res.status(500).json({ error: 'Analitik verileri alınamadı.' });
