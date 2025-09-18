@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
             const response = await fetch(`/branding/${tenantId}`);
-            if (!response.ok) throw new Error('Branding could not be fetched.');
+            if (!response.ok) throw new Error(i18n.t('error_branding_fetch_failed'));
             const brandingSettings = await response.json();
             applyBranding(brandingSettings);
         } catch (error) {
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await loadDashboardData();
             } else {
                 state.isLoggedIn = false; // DEĞİŞİKLİK: Hata durumunda durumu false yap
-                throw new Error('Not logged in');
+                throw new Error(i18n.t('error_not_logged_in'));
             }
         } catch (error) {
             state = createInitialState();
@@ -469,12 +469,12 @@ document.addEventListener('DOMContentLoaded', () => {
         planNameEl.textContent = i18n.t('loading_text');
         try {
             const response = await fetch('/billing', { credentials: 'include' });
-            if (!response.ok) throw new Error('Abonelik bilgileri alınamadı.');
+            if (!response.ok) throw new Error(i18n.t('error_billing_info_fetch_failed'));
             const data = await response.json();
-            planNameEl.textContent = data.plan_name || 'Bilinmiyor';
+            planNameEl.textContent = data.plan_name || i18n.t('plan_name_unknown');
             tenantNameDisplay.textContent = i18n.t('tenant_display_text', { planName: data.plan_name, tenantId: state.tenant.id });
         } catch (error) {
-            planNameEl.textContent = 'Hata';
+            planNameEl.textContent = i18n.t('error_generic_short');
             showFeedback(error.message, 'error');
         }
     }
@@ -484,22 +484,22 @@ document.addEventListener('DOMContentLoaded', () => {
         usageInfoEl.innerHTML = `<p>${i18n.t('loading_text')}</p>`;
         try {
             const response = await fetch('/billing', { credentials: 'include' });
-            if (!response.ok) throw new Error('Kullanım bilgileri alınamadı.');
+            if (!response.ok) throw new Error(i18n.t('error_usage_info_fetch_failed'));
             const data = await response.json();
 
             let usageHtml = '';
             if (data.quota) {
-                usageHtml = `<p>Kullanılan İstek: ${data.quota.used} / ${data.quota.limit}</p>`;
+                usageHtml = `<p>${i18n.t('usage_requests_text', { used: data.quota.used, limit: data.quota.limit })}</p>`;
                 applyQuotaFromUsage(data.quota);
             } else if (data.credits) {
-                usageHtml = `<p>Kalan Kredi: ${data.credits.remaining}</p>`;
+                usageHtml = `<p>${i18n.t('usage_remaining_credits', { remaining: data.credits.remaining })}</p>`;
                 resetQuotaState();
             } else {
                 resetQuotaState();
             }
             usageInfoEl.innerHTML = usageHtml;
         } catch (error) {
-            usageInfoEl.innerHTML = '<p>Hata</p>';
+            usageInfoEl.innerHTML = `<p>${i18n.t('error_generic_short')}</p>`;
             showFeedback(error.message, 'error');
         }
     }
@@ -528,18 +528,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setAnalyticsLoading() {
-        totalCallsStat.textContent = '—';
-        successPercentage.textContent = '—';
+        const placeholder = i18n.t('analytics_placeholder_dash');
+        totalCallsStat.textContent = placeholder;
+        successPercentage.textContent = placeholder;
         successBar.style.width = '0%';
-        avgTimeStat.textContent = '—';
+        avgTimeStat.textContent = placeholder;
         renderActivitiesPlaceholder(i18n.t('loading_text'));
     }
 
     function setAnalyticsError(message) {
-        totalCallsStat.textContent = '—';
-        successPercentage.textContent = '—';
+        const placeholder = i18n.t('analytics_placeholder_dash');
+        totalCallsStat.textContent = placeholder;
+        successPercentage.textContent = placeholder;
         successBar.style.width = '0%';
-        avgTimeStat.textContent = '—';
+        avgTimeStat.textContent = placeholder;
         renderActivitiesPlaceholder(message || i18n.t('analytics_error_generic'));
     }
 
@@ -625,10 +627,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleExportCsv() {
         if (state.analyticsActivities.length === 0) {
-            showFeedback('Dışa aktarılacak veri yok.', 'error');
+            showFeedback(i18n.t('analytics_export_no_data'), 'error');
             return;
         }
-        const headers = ['Tarih', 'İşlem Türü', 'Durum', 'İşlem Süresi (ms)'];
+        const headers = ['analytics_table_date', 'analytics_table_type', 'analytics_table_status', 'analytics_table_duration']
+            .map(key => i18n.t(key));
         const rows = state.analyticsActivities.map(act => [
             new Date(act.timestamp).toISOString(),
             act.type,
@@ -645,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        showFeedback('CSV dışa aktarıldı.', 'success');
+        showFeedback(i18n.t('analytics_export_success'), 'success');
     }
 
     function initializeDateInputs() {
@@ -690,7 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.error || 'Giriş başarısız oldu.');
+                throw new Error(data.error || i18n.t('error_login_failed'));
             }
             
             await checkLoginState();
@@ -708,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = form.querySelector('#register-password').value;
 
         if (!companyName || !email || !password) {
-            showFeedback('Tüm alanlar zorunludur.', 'error');
+            showFeedback(i18n.t('error_all_fields_required'), 'error');
             return;
         }
         
@@ -721,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.error || 'Kayıt başarısız oldu.');
+                throw new Error(data.error || i18n.t('error_register_failed'));
             }
             showFeedback(i18n.t('feedback_register_success'), 'success');
             form.reset();
@@ -757,11 +760,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = resetPasswordForm.querySelector('#reset-password').value;
 
         if (!token) {
-            showFeedback('Sıfırlama tokenı bulunamadı.', 'error');
+            showFeedback(i18n.t('error_reset_token_missing'), 'error');
             return;
         }
         if (password.length < 8) {
-            showFeedback('Şifre en az 8 karakter olmalıdır.', 'error');
+            showFeedback(i18n.t('error_password_too_short'), 'error');
             return;
         }
 
