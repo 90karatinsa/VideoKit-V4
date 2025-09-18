@@ -763,8 +763,12 @@ app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res
         return res.status(403).json({ error: 'TENANT_MISMATCH' });
     }
 
-    const fromParam = typeof req.query.from === 'string' ? req.query.from : null;
-    const toParam = typeof req.query.to === 'string' ? req.query.to : null;
+    const fromParam = typeof req.query.from === 'string'
+        ? req.query.from
+        : (typeof req.query.startDate === 'string' ? req.query.startDate : null);
+    const toParam = typeof req.query.to === 'string'
+        ? req.query.to
+        : (typeof req.query.endDate === 'string' ? req.query.endDate : null);
     const groupByParam = typeof req.query.groupBy === 'string' ? req.query.groupBy.toLowerCase() : 'day';
     const allowedGroups = new Set(['hour', 'day']);
 
@@ -808,21 +812,30 @@ app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res
             ORDER BY bucket ASC;
         `, [tenantId, fromIso, toIso, groupByParam]);
 
-        const totals = totalsResult.rows.map((row) => ({
-            bucket: row.bucket instanceof Date ? row.bucket.toISOString() : new Date(row.bucket).toISOString(),
-            total: Number(row.total || 0),
-            success: Number(row.success_count || 0),
-            errors4xx: Number(row.errors_4xx || 0),
-            errors5xx: Number(row.errors_5xx || 0),
-        }));
+        const totals = totalsResult.rows.map((row) => {
+            const bucketDate = row.bucket instanceof Date ? row.bucket : new Date(row.bucket);
+            const total = Number(row.total || 0);
+            const success = Number(row.success_count || 0);
+            const errors4xx = Number(row.errors_4xx || 0);
+            const errors5xx = Number(row.errors_5xx || 0);
+            const errors = { '4xx': errors4xx, '5xx': errors5xx };
+
+            return {
+                bucket: bucketDate.toISOString(),
+                total,
+                success,
+                errors,
+                successRate: total > 0 ? success / total : 0,
+            };
+        });
 
         const aggregate = totals.reduce((acc, row) => {
             acc.total += row.total;
             acc.success += row.success;
-            acc.errors4xx += row.errors4xx;
-            acc.errors5xx += row.errors5xx;
+            acc.errors['4xx'] += row.errors['4xx'];
+            acc.errors['5xx'] += row.errors['5xx'];
             return acc;
-        }, { total: 0, success: 0, errors4xx: 0, errors5xx: 0 });
+        }, { total: 0, success: 0, errors: { '4xx': 0, '5xx': 0 } });
 
         const latencyResult = await dbPool.query(`
             WITH durations AS (
@@ -878,10 +891,7 @@ app.get('/analytics', protect, ...billingReadChain, withFinalize(async (req, res
         const responseBody = {
             totals,
             successRate: aggregate.total > 0 ? aggregate.success / aggregate.total : 0,
-            errors: {
-                '4xx': aggregate.errors4xx,
-                '5xx': aggregate.errors5xx,
-            },
+            errors: aggregate.errors,
             latency,
             topEndpoints,
         };
