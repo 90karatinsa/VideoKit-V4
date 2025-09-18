@@ -22,7 +22,7 @@ import forge from 'node-forge';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageJson = JSON.parse(await fs.readFile(path.join(__dirname, 'package.json'), 'utf-8'));
 const CURRENT_VERSION = packageJson.version;
-const GITHUB_REPO = 'YourOrg/VideoKit'; // TODO: Bunu kendi GitHub repo adresinizle değiştirin.
+const GITHUB_REPO = 'videokit/videokit-platform';
 
 
 // --- Konfigürasyon Yönetimi ---

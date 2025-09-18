@@ -96,7 +96,7 @@ Bu belge, VideoKit platformunun CLI aracını ve REST API sunucusunu tek doküma
 
 ## Test ve Kalite Kontrolleri
 - Birim testleri: `npm test`
-- E-posta entegrasyon testi (SMTP mock'u): `npm run test:email`
+- E-posta entegrasyon testi (SMTP sahte sunucusu): `npm run test:email`
 - Seed ve reset scriptleri: `npm run seed`, `npm run reset:sandbox`
 
 ## Arka Plan İşleri (Cron Önerileri)
