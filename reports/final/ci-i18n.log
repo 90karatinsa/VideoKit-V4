@@ -1,0 +1,6 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> videokit-api@1.0.0 i18n:audit
+> node tools/run-i18n-audit.mjs
+
+✅ Translation coverage is 100% for all locales.
