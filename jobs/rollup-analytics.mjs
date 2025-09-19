@@ -42,33 +42,35 @@ async function ensureTables(client) {
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS api_events_rollup_hourly (
+      bucket_ts timestamptz NOT NULL,
       tenant_id text NOT NULL,
-      bucket_start timestamptz NOT NULL,
-      total_count bigint NOT NULL,
-      success_count bigint NOT NULL,
-      error_4xx_count bigint NOT NULL,
-      error_5xx_count bigint NOT NULL,
-      avg_duration_ms double precision,
-      p95_duration_ms double precision,
+      endpoint text NOT NULL,
+      calls bigint NOT NULL DEFAULT 0,
+      success bigint NOT NULL DEFAULT 0,
+      errors4xx bigint NOT NULL DEFAULT 0,
+      errors5xx bigint NOT NULL DEFAULT 0,
+      avg_ms integer,
+      p95_ms integer,
       created_at timestamptz NOT NULL DEFAULT NOW(),
       updated_at timestamptz NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (tenant_id, bucket_start)
+      PRIMARY KEY (bucket_ts, tenant_id, endpoint)
     );
   `);
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS api_events_rollup_daily (
+      bucket_ts timestamptz NOT NULL,
       tenant_id text NOT NULL,
-      bucket_date date NOT NULL,
-      total_count bigint NOT NULL,
-      success_count bigint NOT NULL,
-      error_4xx_count bigint NOT NULL,
-      error_5xx_count bigint NOT NULL,
-      avg_duration_ms double precision,
-      p95_duration_ms double precision,
+      endpoint text NOT NULL,
+      calls bigint NOT NULL DEFAULT 0,
+      success bigint NOT NULL DEFAULT 0,
+      errors4xx bigint NOT NULL DEFAULT 0,
+      errors5xx bigint NOT NULL DEFAULT 0,
+      avg_ms integer,
+      p95_ms integer,
       created_at timestamptz NOT NULL DEFAULT NOW(),
       updated_at timestamptz NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (tenant_id, bucket_date)
+      PRIMARY KEY (bucket_ts, tenant_id, endpoint)
     );
   `);
 }
@@ -90,15 +92,68 @@ async function updateRollupState(client, rollupType, timestamp) {
   );
 }
 
-const numericDurationClause = `(
-  CASE
-    WHEN metadata ? 'duration_ms' AND metadata->>'duration_ms' ~ '^\\d+(?:\\.\\d+)?$'
-    THEN (metadata->>'duration_ms')::numeric
-    ELSE NULL
-  END
-)`;
+const quoteIdent = (identifier) => {
+  if (!/^[a-z_][a-z0-9_]*$/i.test(identifier)) {
+    throw new Error(`Invalid identifier: ${identifier}`);
+  }
+  return `"${identifier}"`;
+};
 
-async function rollupHourly(client) {
+const buildDurationClause = ({ metadataColumn, durationColumn }) => {
+  if (metadataColumn) {
+    const metadataIdent = quoteIdent(metadataColumn);
+    return `(
+      CASE
+        WHEN ${metadataIdent} ? 'duration_ms' AND ${metadataIdent}->>'duration_ms' ~ '^\\\d+(?:\\.\\d+)?$'
+        THEN (${metadataIdent}->>'duration_ms')::numeric
+        ELSE NULL
+      END
+    )`;
+  }
+  if (durationColumn) {
+    const durationIdent = quoteIdent(durationColumn);
+    return `${durationIdent}::numeric`;
+  }
+  return 'NULL';
+};
+
+async function resolveEventSchema(client) {
+  const { rows } = await client.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_name = 'api_events'`,
+  );
+  const columns = new Set(rows.map((row) => row.column_name));
+
+  const timestampColumn = columns.has('occurred_at') ? 'occurred_at' : columns.has('ts') ? 'ts' : null;
+  if (!timestampColumn) {
+    throw new Error('api_events table is missing occurred_at/ts timestamp columns required for rollups.');
+  }
+
+  const endpointColumn = columns.has('endpoint') ? 'endpoint' : columns.has('endpoint_norm') ? 'endpoint_norm' : null;
+  if (!endpointColumn) {
+    throw new Error('api_events table is missing endpoint or endpoint_norm columns required for rollups.');
+  }
+
+  const statusColumn = columns.has('status_code') ? 'status_code' : columns.has('status') ? 'status' : null;
+  if (!statusColumn) {
+    throw new Error('api_events table is missing status/status_code columns required for rollups.');
+  }
+
+  const metadataColumn = columns.has('metadata') ? 'metadata' : null;
+  const durationColumn = columns.has('duration_ms') ? 'duration_ms' : null;
+
+  const durationClause = buildDurationClause({ metadataColumn, durationColumn });
+
+  return {
+    timestampColumn,
+    timestampIdent: quoteIdent(timestampColumn),
+    endpointSelect: `${quoteIdent(endpointColumn)} AS endpoint`,
+    endpointGroup: quoteIdent(endpointColumn),
+    statusIdent: quoteIdent(statusColumn),
+    durationClause,
+  };
+}
+
+async function rollupHourly(client, schema) {
   const state = await getRollupState(client, 'hourly');
   const now = new Date();
   const cutoff = new Date(Math.floor((now.getTime() - 5 * 60 * 1000) / HOUR_MS) * HOUR_MS);
@@ -111,20 +166,21 @@ async function rollupHourly(client) {
   const start = new Date(Math.max(0, state.getTime() - HOUR_MS));
   const { rows } = await client.query(
     `SELECT
-        date_trunc('hour', occurred_at) AS bucket,
+        date_trunc('hour', ${schema.timestampIdent}) AS bucket,
         tenant_id,
-        COUNT(*)::bigint AS total_count,
-        COUNT(*) FILTER (WHERE status_code BETWEEN 200 AND 299)::bigint AS success_count,
-        COUNT(*) FILTER (WHERE status_code BETWEEN 400 AND 499)::bigint AS error_4xx_count,
-        COUNT(*) FILTER (WHERE status_code BETWEEN 500 AND 599)::bigint AS error_5xx_count,
-        AVG(${numericDurationClause}) AS avg_duration_ms,
-        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ${numericDurationClause})
-          FILTER (WHERE ${numericDurationClause} IS NOT NULL) AS p95_duration_ms
+        ${schema.endpointSelect},
+        COUNT(*)::bigint AS calls,
+        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 200 AND 299)::bigint AS success,
+        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 400 AND 499)::bigint AS errors4xx,
+        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 500 AND 599)::bigint AS errors5xx,
+        AVG(${schema.durationClause}) AS avg_duration_ms,
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ${schema.durationClause})
+          FILTER (WHERE ${schema.durationClause} IS NOT NULL) AS p95_duration_ms
       FROM api_events
-      WHERE occurred_at >= $1::timestamptz
-        AND occurred_at < $2::timestamptz
-      GROUP BY bucket, tenant_id
-      ORDER BY bucket, tenant_id`,
+      WHERE ${schema.timestampIdent} >= $1::timestamptz
+        AND ${schema.timestampIdent} < $2::timestamptz
+      GROUP BY bucket, tenant_id, ${schema.endpointGroup}
+      ORDER BY bucket, tenant_id, endpoint`,
     [start.toISOString(), cutoff.toISOString()],
   );
 
@@ -139,33 +195,39 @@ async function rollupHourly(client) {
     for (const row of rows) {
       const bucket = parseTimestamp(row.bucket);
       const tenantId = row.tenant_id;
-      if (!tenantId || !bucket) continue;
+      const endpoint = row.endpoint;
+      if (!tenantId || !endpoint || !bucket) continue;
       const params = [
-        tenantId,
         bucket,
-        Number(row.total_count || 0),
-        Number(row.success_count || 0),
-        Number(row.error_4xx_count || 0),
-        Number(row.error_5xx_count || 0),
-        row.avg_duration_ms != null ? Number(row.avg_duration_ms) : null,
-        row.p95_duration_ms != null ? Number(row.p95_duration_ms) : null,
+        tenantId,
+        endpoint,
+        Number(row.calls || 0),
+        Number(row.success || 0),
+        Number(row.errors4xx || 0),
+        Number(row.errors5xx || 0),
+        row.avg_duration_ms != null && Number.isFinite(Number(row.avg_duration_ms))
+          ? Math.round(Number(row.avg_duration_ms))
+          : null,
+        row.p95_duration_ms != null && Number.isFinite(Number(row.p95_duration_ms))
+          ? Math.round(Number(row.p95_duration_ms))
+          : null,
       ];
 
       await client.query(
         `INSERT INTO api_events_rollup_hourly (
-           tenant_id, bucket_start, total_count, success_count, error_4xx_count, error_5xx_count, avg_duration_ms, p95_duration_ms, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-         ON CONFLICT (tenant_id, bucket_start)
-         DO UPDATE SET total_count = EXCLUDED.total_count,
-                       success_count = EXCLUDED.success_count,
-                       error_4xx_count = EXCLUDED.error_4xx_count,
-                       error_5xx_count = EXCLUDED.error_5xx_count,
-                       avg_duration_ms = EXCLUDED.avg_duration_ms,
-                       p95_duration_ms = EXCLUDED.p95_duration_ms,
+           bucket_ts, tenant_id, endpoint, calls, success, errors4xx, errors5xx, avg_ms, p95_ms, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+         ON CONFLICT (bucket_ts, tenant_id, endpoint)
+         DO UPDATE SET calls = EXCLUDED.calls,
+                       success = EXCLUDED.success,
+                       errors4xx = EXCLUDED.errors4xx,
+                       errors5xx = EXCLUDED.errors5xx,
+                       avg_ms = EXCLUDED.avg_ms,
+                       p95_ms = EXCLUDED.p95_ms,
                        updated_at = NOW()`,
         params,
       );
-      seenBuckets.add(bucket.toISOString());
+      seenBuckets.add(`${bucket.toISOString()}::${tenantId}::${endpoint}`);
     }
 
     await updateRollupState(client, 'hourly', cutoff.toISOString());
@@ -177,7 +239,7 @@ async function rollupHourly(client) {
   }
 }
 
-async function rollupDaily(client) {
+async function rollupDaily(client, schema) {
   const state = await getRollupState(client, 'daily');
   const now = new Date();
   const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -190,20 +252,21 @@ async function rollupDaily(client) {
   const start = new Date(Math.max(0, state.getTime() - DAY_MS));
   const { rows } = await client.query(
     `SELECT
-        date_trunc('day', occurred_at) AS bucket,
+        date_trunc('day', ${schema.timestampIdent}) AS bucket,
         tenant_id,
-        COUNT(*)::bigint AS total_count,
-        COUNT(*) FILTER (WHERE status_code BETWEEN 200 AND 299)::bigint AS success_count,
-        COUNT(*) FILTER (WHERE status_code BETWEEN 400 AND 499)::bigint AS error_4xx_count,
-        COUNT(*) FILTER (WHERE status_code BETWEEN 500 AND 599)::bigint AS error_5xx_count,
-        AVG(${numericDurationClause}) AS avg_duration_ms,
-        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ${numericDurationClause})
-          FILTER (WHERE ${numericDurationClause} IS NOT NULL) AS p95_duration_ms
+        ${schema.endpointSelect},
+        COUNT(*)::bigint AS calls,
+        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 200 AND 299)::bigint AS success,
+        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 400 AND 499)::bigint AS errors4xx,
+        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 500 AND 599)::bigint AS errors5xx,
+        AVG(${schema.durationClause}) AS avg_duration_ms,
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ${schema.durationClause})
+          FILTER (WHERE ${schema.durationClause} IS NOT NULL) AS p95_duration_ms
       FROM api_events
-      WHERE occurred_at >= $1::timestamptz
-        AND occurred_at < $2::timestamptz
-      GROUP BY bucket, tenant_id
-      ORDER BY bucket, tenant_id`,
+      WHERE ${schema.timestampIdent} >= $1::timestamptz
+        AND ${schema.timestampIdent} < $2::timestamptz
+      GROUP BY bucket, tenant_id, ${schema.endpointGroup}
+      ORDER BY bucket, tenant_id, endpoint`,
     [start.toISOString(), cutoff.toISOString()],
   );
 
@@ -218,34 +281,39 @@ async function rollupDaily(client) {
     for (const row of rows) {
       const bucket = parseTimestamp(row.bucket);
       const tenantId = row.tenant_id;
-      if (!tenantId || !bucket) continue;
-      const bucketDate = bucket.toISOString().slice(0, 10);
+      const endpoint = row.endpoint;
+      if (!tenantId || !endpoint || !bucket) continue;
       const params = [
+        bucket,
         tenantId,
-        bucketDate,
-        Number(row.total_count || 0),
-        Number(row.success_count || 0),
-        Number(row.error_4xx_count || 0),
-        Number(row.error_5xx_count || 0),
-        row.avg_duration_ms != null ? Number(row.avg_duration_ms) : null,
-        row.p95_duration_ms != null ? Number(row.p95_duration_ms) : null,
+        endpoint,
+        Number(row.calls || 0),
+        Number(row.success || 0),
+        Number(row.errors4xx || 0),
+        Number(row.errors5xx || 0),
+        row.avg_duration_ms != null && Number.isFinite(Number(row.avg_duration_ms))
+          ? Math.round(Number(row.avg_duration_ms))
+          : null,
+        row.p95_duration_ms != null && Number.isFinite(Number(row.p95_duration_ms))
+          ? Math.round(Number(row.p95_duration_ms))
+          : null,
       ];
 
       await client.query(
         `INSERT INTO api_events_rollup_daily (
-           tenant_id, bucket_date, total_count, success_count, error_4xx_count, error_5xx_count, avg_duration_ms, p95_duration_ms, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-         ON CONFLICT (tenant_id, bucket_date)
-         DO UPDATE SET total_count = EXCLUDED.total_count,
-                       success_count = EXCLUDED.success_count,
-                       error_4xx_count = EXCLUDED.error_4xx_count,
-                       error_5xx_count = EXCLUDED.error_5xx_count,
-                       avg_duration_ms = EXCLUDED.avg_duration_ms,
-                       p95_duration_ms = EXCLUDED.p95_duration_ms,
+           bucket_ts, tenant_id, endpoint, calls, success, errors4xx, errors5xx, avg_ms, p95_ms, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+         ON CONFLICT (bucket_ts, tenant_id, endpoint)
+         DO UPDATE SET calls = EXCLUDED.calls,
+                       success = EXCLUDED.success,
+                       errors4xx = EXCLUDED.errors4xx,
+                       errors5xx = EXCLUDED.errors5xx,
+                       avg_ms = EXCLUDED.avg_ms,
+                       p95_ms = EXCLUDED.p95_ms,
                        updated_at = NOW()`,
         params,
       );
-      seenBuckets.add(bucketDate);
+      seenBuckets.add(`${bucket.toISOString()}::${tenantId}::${endpoint}`);
     }
 
     await updateRollupState(client, 'daily', cutoff.toISOString());
@@ -272,8 +340,9 @@ async function main() {
         return;
       }
 
-      const hourly = await rollupHourly(client);
-      const daily = await rollupDaily(client);
+      const schema = await resolveEventSchema(client);
+      const hourly = await rollupHourly(client, schema);
+      const daily = await rollupDaily(client, schema);
 
       console.log(
         `[rollup-analytics] Completed. hourlyBuckets=${hourly.buckets}, dailyBuckets=${daily.buckets}`,

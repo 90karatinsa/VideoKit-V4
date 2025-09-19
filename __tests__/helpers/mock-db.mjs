@@ -47,7 +47,7 @@ export class MockDb {
     for (const [key, record] of this.usageCounters.entries()) {
       const [tenant, ep] = key.split('|', 3);
       if (tenant === tenantId && ep === endpoint) {
-        totals.push(record.call_count);
+        totals.push(record.count ?? 0);
       }
     }
     return totals.reduce((acc, value) => acc + value, 0);
@@ -58,7 +58,7 @@ export class MockDb {
     for (const [key, record] of this.usageCounters.entries()) {
       const [tenant, ep] = key.split('|', 3);
       if (tenant === tenantId && ep === '__total__') {
-        total += record.call_count;
+        total += record.total_weight ?? 0;
       }
     }
     return total;
@@ -134,20 +134,26 @@ export class MockDb {
       return { rows: [], rowCount: row ? 1 : 0 };
     }
 
-    if (normalized.startsWith('SELECT call_count FROM usage_counters WHERE tenant_id')) {
+    if (normalized.startsWith('SELECT count, total_weight FROM usage_counters WHERE tenant_id')) {
       const [tenantId, endpoint, periodStart] = params;
       const key = this.#usageKey(tenantId, endpoint, periodStart);
       const record = this.usageCounters.get(key);
-      return { rows: record ? [{ call_count: record.call_count }] : [], rowCount: record ? 1 : 0 };
+      return {
+        rows: record ? [{ count: record.count ?? 0, total_weight: record.total_weight ?? 0 }] : [],
+        rowCount: record ? 1 : 0,
+      };
     }
 
     if (normalized.startsWith('INSERT INTO usage_counters')) {
-      const [tenantId, endpoint, periodStart, weight] = params;
+      const [tenantId, endpoint, periodStart, count, weight] = params;
       const key = this.#usageKey(tenantId, endpoint, periodStart);
-      const existing = this.usageCounters.get(key) ?? { call_count: 0 };
-      const updated = existing.call_count + Number(weight || 0);
-      this.usageCounters.set(key, { call_count: updated });
-      return { rows: [{ call_count: updated }], rowCount: 1 };
+      const existing = this.usageCounters.get(key) ?? { count: 0, total_weight: 0 };
+      const next = {
+        count: existing.count + Number(count || 0),
+        total_weight: existing.total_weight + Number(weight || 0),
+      };
+      this.usageCounters.set(key, next);
+      return { rows: [{ count: next.count, total_weight: next.total_weight }], rowCount: 1 };
     }
 
     if (normalized.startsWith('INSERT INTO api_events')) {

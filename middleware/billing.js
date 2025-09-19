@@ -17,33 +17,42 @@ const OPERATIONS = [
   },
 ];
 
-const TOTAL_FIELD = '__total__';
+const TOTAL_WEIGHT_FIELD = '__total__';
+const TOTAL_COUNT_FIELD = '__total_count__';
+const ENDPOINT_WEIGHT_PREFIX = 'op:';
+const ENDPOINT_COUNT_PREFIX = 'op_count:';
 const DEFAULT_IDEMPOTENCY_TTL_SECONDS = 86_400; // 24 hours
 
 const REDIS_INCREMENT_LUA = `
 local key = KEYS[1]
 local ttl = tonumber(ARGV[1])
-local totalField = ARGV[2]
-local opField = ARGV[3]
-local increment = tonumber(ARGV[4])
-local limit = tonumber(ARGV[5])
+local totalWeightField = ARGV[2]
+local totalCountField = ARGV[3]
+local endpointWeightField = ARGV[4]
+local endpointCountField = ARGV[5]
+local weightIncrement = tonumber(ARGV[6])
+local limit = tonumber(ARGV[7])
 
 if limit >= 0 then
-  local current = tonumber(redis.call('HGET', key, totalField) or '0')
-  if current + increment > limit then
-    local opValue = tonumber(redis.call('HGET', key, opField) or '0')
-    return {0, current, opValue}
+  local currentWeight = tonumber(redis.call('HGET', key, totalWeightField) or '0')
+  if currentWeight + weightIncrement > limit then
+    local endpointWeight = tonumber(redis.call('HGET', key, endpointWeightField) or '0')
+    local currentCount = tonumber(redis.call('HGET', key, totalCountField) or '0')
+    local endpointCount = tonumber(redis.call('HGET', key, endpointCountField) or '0')
+    return {0, currentWeight, endpointWeight, currentCount, endpointCount}
   end
 end
 
-local newTotal = redis.call('HINCRBYFLOAT', key, totalField, increment)
-local newOp = redis.call('HINCRBYFLOAT', key, opField, increment)
+local newTotalWeight = redis.call('HINCRBYFLOAT', key, totalWeightField, weightIncrement)
+local newEndpointWeight = redis.call('HINCRBYFLOAT', key, endpointWeightField, weightIncrement)
+local newTotalCount = redis.call('HINCRBY', key, totalCountField, 1)
+local newEndpointCount = redis.call('HINCRBY', key, endpointCountField, 1)
 
 if ttl and ttl > 0 then
   redis.call('PEXPIRE', key, ttl)
 end
 
-return {1, newTotal, newOp}
+return {1, newTotalWeight, newEndpointWeight, newTotalCount, newEndpointCount}
 `;
 
 const READ_RATE_LIMIT_LUA = `
@@ -370,7 +379,9 @@ const computePeriod = (now) => {
   };
 };
 
-const endpointField = (endpoint) => `op:${endpoint.replace(/\s+/g, '_')}`;
+const endpointKey = (endpoint) => endpoint.replace(/\s+/g, '_');
+const endpointWeightField = (endpoint) => `${ENDPOINT_WEIGHT_PREFIX}${endpointKey(endpoint)}`;
+const endpointCountField = (endpoint) => `${ENDPOINT_COUNT_PREFIX}${endpointKey(endpoint)}`;
 
 const requestHash = (req, endpoint) => {
   const hash = crypto.createHash('sha256');
@@ -633,21 +644,31 @@ export const incrementUsageAtomic = async (tenantId, endpoint, weight, periodKey
 
   if (redis) {
     try {
+      const weightField = endpointWeightField(endpoint);
+      const countField = endpointCountField(endpoint);
       const result = await redis.eval(
         REDIS_INCREMENT_LUA,
         1,
         key,
         ttlMs ?? 0,
-        TOTAL_FIELD,
-        endpointField(endpoint),
+        TOTAL_WEIGHT_FIELD,
+        TOTAL_COUNT_FIELD,
+        weightField,
+        countField,
         weight,
         limit ?? -1,
       );
 
+      const [allowedFlag, totalWeight, endpointWeight, totalCount, endpointCount] = Array.isArray(result)
+        ? result
+        : [0, 0, 0, 0, 0];
+
       return {
-        allowed: result[0] === 1,
-        total: Number(result[1] ?? 0),
-        endpointUsage: Number(result[2] ?? 0),
+        allowed: allowedFlag === 1,
+        total: Number(totalWeight ?? 0),
+        endpointUsage: Number(endpointWeight ?? 0),
+        totalCount: Number(totalCount ?? 0),
+        endpointCount: Number(endpointCount ?? 0),
       };
     } catch (error) {
       state.logger?.warn?.({ err: error }, '[billing] Redis increment failed, falling back to Postgres.');
@@ -661,43 +682,50 @@ export const incrementUsageAtomic = async (tenantId, endpoint, weight, periodKey
     await client.query('BEGIN');
 
     const current = await client.query(
-      'SELECT call_count FROM usage_counters WHERE tenant_id = $1 AND endpoint = $2 AND period_start = $3 FOR UPDATE',
-      [tenantId, TOTAL_FIELD, periodStart],
+      'SELECT count, total_weight FROM usage_counters WHERE tenant_id = $1 AND endpoint = $2 AND period_start = $3 FOR UPDATE',
+      [tenantId, TOTAL_WEIGHT_FIELD, periodStart],
     );
-    const currentTotal = Number(current.rows[0]?.call_count ?? 0);
-    if (limit != null && currentTotal + weight > limit) {
+    const currentTotalWeight = Number(current.rows[0]?.total_weight ?? 0);
+    const currentTotalCount = Number(current.rows[0]?.count ?? 0);
+    if (limit != null && currentTotalWeight + weight > limit) {
       await client.query('ROLLBACK');
       return {
         allowed: false,
-        total: currentTotal,
-        endpointUsage: currentTotal,
+        total: currentTotalWeight,
+        endpointUsage: currentTotalWeight,
+        totalCount: currentTotalCount,
+        endpointCount: currentTotalCount,
       };
     }
 
     const total = await client.query(
-      `INSERT INTO usage_counters (tenant_id, endpoint, period_start, call_count)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO usage_counters (tenant_id, endpoint, period_start, count, total_weight)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (tenant_id, endpoint, period_start)
-       DO UPDATE SET call_count = usage_counters.call_count + EXCLUDED.call_count, last_updated_at = NOW()
-       RETURNING call_count`,
-      [tenantId, TOTAL_FIELD, periodStart, weight],
+       DO UPDATE SET count = usage_counters.count + EXCLUDED.count,
+                     total_weight = usage_counters.total_weight + EXCLUDED.total_weight
+       RETURNING count, total_weight`,
+      [tenantId, TOTAL_WEIGHT_FIELD, periodStart, 1, weight],
     );
 
     const endpointResult = await client.query(
-      `INSERT INTO usage_counters (tenant_id, endpoint, period_start, call_count)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO usage_counters (tenant_id, endpoint, period_start, count, total_weight)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (tenant_id, endpoint, period_start)
-       DO UPDATE SET call_count = usage_counters.call_count + EXCLUDED.call_count, last_updated_at = NOW()
-       RETURNING call_count`,
-      [tenantId, endpoint, periodStart, weight],
+       DO UPDATE SET count = usage_counters.count + EXCLUDED.count,
+                     total_weight = usage_counters.total_weight + EXCLUDED.total_weight
+       RETURNING count, total_weight`,
+      [tenantId, endpoint, periodStart, 1, weight],
     );
 
     await client.query('COMMIT');
 
     return {
       allowed: true,
-      total: Number(total.rows[0]?.call_count ?? 0),
-      endpointUsage: Number(endpointResult.rows[0]?.call_count ?? 0),
+      total: Number(total.rows[0]?.total_weight ?? 0),
+      endpointUsage: Number(endpointResult.rows[0]?.total_weight ?? 0),
+      totalCount: Number(total.rows[0]?.count ?? 0),
+      endpointCount: Number(endpointResult.rows[0]?.count ?? 0),
     };
   } catch (error) {
     await client.query('ROLLBACK');
