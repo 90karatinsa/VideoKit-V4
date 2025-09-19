@@ -14361,3 +14361,294 @@ psql postgres://postgres:postgres@localhost:5432/videikit_hotfix -c "SELECT endp
 npm test -- --runTestsByPath __tests__/billing.unit.test.mjs
 # log: 4d709f
 ```
+
+### Hotfix Pack #2 (i18n/Simulate Lock/Node Pin)
+
+#### Batch UI internationalization (`batch.js`)
+
+```diff
+diff --git a/batch.js b/batch.js
+@@
+-document.addEventListener('DOMContentLoaded', () => {
+-    // Bu dosyadaki metinler henüz i18n kapsamına alınmamıştır.
+-    // Ancak altyapısı app.js'deki gibi kurulabilir.
+-const mainNav = document.getElementById('main-nav');
+-function updateNavVisibility(isLoggedIn) {
+-  if (mainNav) mainNav.hidden = !isLoggedIn;
+-}
+-    // === DOM Elementleri ===
++document.addEventListener('DOMContentLoaded', () => {
++    const i18n = {
++        translations: {},
++        currentLang: 'tr',
++        async loadLanguage(lang) {
++            try {
++                const response = await fetch(`/locales/${lang}.json`);
++                if (!response.ok) throw new Error(`Failed to load language: ${lang}`);
++                this.translations = await response.json();
++                this.currentLang = lang;
++                document.documentElement.lang = lang;
++                this.applyTranslations();
++            } catch (error) {
++                console.error(error);
++            }
++        },
++        t(key, replacements = {}) {
++            let text = this.translations[key] || key;
++            for (const placeholder in replacements) {
++                text = text.replace(new RegExp(`{{${placeholder}}}`, 'g'), replacements[placeholder]);
++            }
++            return text;
++        },
++        applyTranslations(root = document) {
++            const elements = [];
++            if (root instanceof Element || root instanceof DocumentFragment) {
++                if (root.dataset?.i18n) {
++                    elements.push(root);
++                }
++                elements.push(...root.querySelectorAll('[data-i18n]'));
++            } else {
++                elements.push(...document.querySelectorAll('[data-i18n]'));
++            }
++            elements.forEach((el) => {
++                const key = el.dataset.i18n;
++                if (!key) return;
++                let replacements = {};
++                if (el.dataset.i18nArgs) {
++                    try {
++                        replacements = JSON.parse(el.dataset.i18nArgs);
++                    } catch (error) {
++                        console.warn('Failed to parse i18n args for element', el, error);
++                    }
++                }
++                const tag = el.tagName?.toLowerCase?.();
++                const translated = this.t(key, replacements);
++                if (tag === 'input' || tag === 'textarea') {
++                    if (typeof el.placeholder === 'string') {
++                        el.placeholder = translated;
++                    }
++                } else {
++                    el.innerHTML = translated;
++                }
++            });
++        }
++    };
++
++    const mainNav = document.getElementById('main-nav');
++    function updateNavVisibility(isLoggedIn) {
++        if (mainNav) mainNav.hidden = !isLoggedIn;
++    }
++    // === DOM Elements ===
++    const langSwitcher = document.getElementById('lang-switcher');
+@@
+-    // === Fonksiyonlar ===
++    // === Functions ===
++
++    function setTranslation(element, key, replacements = {}) {
++        if (!element) return;
++        element.dataset.i18n = key;
++        const hasArgs = replacements && Object.keys(replacements).length > 0;
++        if (hasArgs) {
++            element.dataset.i18nArgs = JSON.stringify(replacements);
++        } else {
++            delete element.dataset.i18nArgs;
++        }
++        i18n.applyTranslations(element);
++    }
+@@
+-    function updateFileStatus(row, statusClass, statusText) {
+-        const statusCell = row.cells[1];
+-        statusCell.innerHTML = `<span class="status-badge status-${statusClass}">${statusText}</span>`;
+-    }
++    function renderStatusBadge(cell, statusClass, translationKey, replacements = {}) {
++        if (!cell) return;
++        const badge = document.createElement('span');
++        badge.className = `status-badge status-${statusClass}`;
++        if (translationKey) {
++            setTranslation(badge, translationKey, replacements);
++        }
++        cell.innerHTML = '';
++        cell.appendChild(badge);
++    }
++
++    function updateFileStatus(row, statusClass, translationKey, replacements = {}) {
++        const statusCell = row.cells[1];
++        renderStatusBadge(statusCell, statusClass, translationKey, replacements);
++    }
+@@
+-        resultCell.innerHTML = `<span class="verdict-${verdict}">${result.message || 'Bilinmeyen durum'}</span>`;
++        const badge = document.createElement('span');
++        badge.className = `verdict-${verdict}`;
++        if (result.message) {
++            delete badge.dataset.i18n;
++            delete badge.dataset.i18nArgs;
++            badge.textContent = result.message;
++        } else {
++            setTranslation(badge, 'status_unknown');
++        }
++        resultCell.innerHTML = '';
++        resultCell.appendChild(badge);
+@@
+-        processSummaryEl.textContent = `Tamamlanan: ${state.completedCount} | Hatalı: ${state.failedCount}`;
+-        if (state.completedCount + state.failedCount === state.files.size) {
+-            downloadBtn.disabled = false;
+-        }
++        const completed = state.completedCount;
++        const failed = state.failedCount;
++        const total = state.files.size;
++        setTranslation(processSummaryEl, 'batch_process_summary', {
++            completed,
++            failed,
++        });
++        if (downloadBtn) {
++            downloadBtn.disabled = !(total > 0 && completed + failed === total);
++        }
+@@
+-        uploadProgressEl.textContent = `Yüklenen: ${uploadedCount} / ${state.files.size}`;
++        setTranslation(uploadProgressEl, 'batch_upload_progress', {
++            uploaded: uploadedCount,
++            total: state.files.size,
++        });
+@@
+-            row.insertCell(1).innerHTML = `<span class="status-badge status-waiting">Bekliyor</span>`;
++            const statusCell = row.insertCell(1);
++            renderStatusBadge(statusCell, 'waiting', 'status_waiting');
+@@
+-                    if (!response.ok) throw new Error(`Sunucu hatası: ${response.statusText}`);
++                    if (!response.ok) {
++                        throw new Error(i18n.t('batch_upload_error_status', { status: response.status }));
++                    }
+@@
+-                    updateFileStatus(fileEntry.rowElement, 'processing', 'İşleniyor');
++                    updateFileStatus(fileEntry.rowElement, 'processing', 'status_processing');
+@@
+-                    updateFileStatus(fileEntry.rowElement, 'failed', 'Yükleme Hatası');
++                    updateFileStatus(fileEntry.rowElement, 'failed', 'status_upload_error');
+@@
+-                throw new Error('Oturum bulunamadı.');
++                throw new Error(i18n.t('error_not_logged_in'));
+@@
+-            tenantInfoDisplay.textContent = `Kiracı: ${tenant.name || tenant.id}`;
++            const tenantName = tenant.name || i18n.t('plan_name_unknown');
++            setTranslation(tenantInfoDisplay, 'batch_tenant_display', {
++                tenantName,
++                tenantId: tenant.id,
++            });
+@@
+-            showFeedback('Devam etmek için lütfen giriş yapın.', 'error');
++            showFeedback(i18n.t('batch_login_prompt'), 'error');
+@@
+-                throw new Error(`İndirme sırasında hata oluştu (${response.status}).`);
++                throw new Error(i18n.t('batch_download_error_status', { status: response.status }));
+@@
+-            showFeedback('Rapor indirildi.', 'success');
++            showFeedback(i18n.t('batch_download_success'), 'success');
+@@
+-    // Sayfa yüklendiğinde oturum kontrolü yap
+-    checkLoginState();
++    if (langSwitcher) {
++        langSwitcher.addEventListener('change', handleLanguageChange);
++    }
++
++    const initialize = async () => {
++        const savedLang = localStorage.getItem('videokit_lang') || 'tr';
++        if (langSwitcher) {
++            langSwitcher.value = savedLang;
++        }
++        await i18n.loadLanguage(savedLang);
++        updateProcessSummary();
++        updateUploadProgress();
++        await checkLoginState();
++    };
++
++    initialize().catch((error) => {
++        console.error('Batch initialization failed:', error);
++    });
+```
+
+Locales `en.json`, `tr.json`, `de.json`, `es.json`, and `locales/en-XA.json` gained matching keys for the new batch statuses, summaries, tenant label, and download/upload errors.
+
+#### Simulate endpoint guard (`server.mjs`)
+
+```diff
+diff --git a/server.mjs b/server.mjs
+@@
+ const authRouter = createAuthRouter({
+     dbPool,
+     redis: redisConnection,
+     config,
+     auth: authMiddleware,
+ });
+ 
++const simulateRoutesEnabled = process.env.NODE_ENV !== 'production'
++    || process.env.FEATURE_SIMULATE_ROUTES === '1';
++
++if (!simulateRoutesEnabled) {
++    app.all('/auth/simulate-*', (req, res) => {
++        return res.status(404).json({ code: 'NOT_FOUND' });
++    });
++}
++
+ app.use('/auth', authRouter);
+```
+
+#### Unified Node toolchain (`Dockerfile*`, `.github/workflows/ci.yml`, `package.json`)
+
+```diff
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+@@
+-          node-version: '20'
++          node-version: '20.19.4'
+diff --git a/Dockerfile.server b/Dockerfile.server
+@@
+-FROM node:22-bookworm-slim
++FROM node:20.19.4-bookworm-slim
+diff --git a/Dockerfile.worker b/Dockerfile.worker
+@@
+-FROM node:18-alpine AS base
++FROM node:20.19.4-alpine AS base
+diff --git a/package.json b/package.json
+@@
+   "author": "VideoKit Engineering",
+   "license": "ISC",
++  "engines": {
++    "node": "20.19.4",
++    "npm": "11.4.2"
++  },
+```
+
+#### Verification
+
+```bash
+$ rg --count --stats "[İıŞşĞğÇçÖöÜü]" batch.js
+
+0 matches
+0 matched lines
+0 files contained matches
+1 files searched
+0 bytes printed
+15952 bytes searched
+0.000087 seconds spent searching
+0.005740 seconds
+```
+
+```bash
+$ curl -i -X POST http://127.0.0.1:3456/auth/simulate-quota
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+Date: Fri, 19 Sep 2025 08:01:20 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"code":"NOT_FOUND"}
+```
+
+```bash
+$ node -v
+v20.19.4
+
+$ npm -v
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+11.4.2
+```

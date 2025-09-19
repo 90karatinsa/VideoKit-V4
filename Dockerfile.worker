@@ -3,7 +3,7 @@
 # yürüten 'worker.js' uygulamasını çalıştırır.
 
 # Adım 1: Temel imajı seç
-FROM node:18-alpine AS base
+FROM node:20.19.4-alpine AS base
 
 # Adım 2: Çalışma dizinini ayarla
 WORKDIR /usr/src/app
