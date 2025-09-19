@@ -623,6 +623,15 @@ const authRouter = createAuthRouter({
     auth: authMiddleware,
 });
 
+const simulateRoutesEnabled = process.env.NODE_ENV !== 'production'
+    || process.env.FEATURE_SIMULATE_ROUTES === '1';
+
+if (!simulateRoutesEnabled) {
+    app.all('/auth/simulate-*', (req, res) => {
+        return res.status(404).json({ code: 'NOT_FOUND' });
+    });
+}
+
 app.use('/auth', authRouter);
 
 app.post('/verify', protect, ...billingWriteChain, fileUpload.single('file'), withFinalize(async (req, res) => {

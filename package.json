@@ -62,6 +62,10 @@
   },
   "author": "VideoKit Engineering",
   "license": "ISC",
+  "engines": {
+    "node": "20.19.4",
+    "npm": "11.4.2"
+  },
   "devDependencies": {
     "@playwright/test": "^1.46.0",
     "eslint": "^8.57.1",
