@@ -3,8 +3,10 @@ import Redis from 'ioredis';
 
 import config, { initialize as initializeConfig } from '../config.js';
 
-const TOTAL_FIELD = '__total__';
-const ENDPOINT_PREFIX = 'op:';
+const TOTAL_WEIGHT_FIELD = '__total__';
+const TOTAL_COUNT_FIELD = '__total_count__';
+const ENDPOINT_WEIGHT_PREFIX = 'op:';
+const ENDPOINT_COUNT_PREFIX = 'op_count:';
 const USAGE_KEY_PATTERN = /^usage:([^:]+):(\d{4}-\d{2})$/;
 const ADVISORY_LOCK_KEY = 0x666c75736801; // "flush" in hex with suffix
 
@@ -25,10 +27,26 @@ const parseCount = (value) => {
   return Math.round(numeric);
 };
 
-const normalizeEndpointField = (field) => {
-  if (field === TOTAL_FIELD) return TOTAL_FIELD;
-  if (field.startsWith(ENDPOINT_PREFIX)) {
-    return field.slice(ENDPOINT_PREFIX.length);
+const parseWeight = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return null;
+  }
+  return numeric;
+};
+
+const classifyField = (field) => {
+  if (field === TOTAL_WEIGHT_FIELD) {
+    return { scope: 'total', metric: 'weight' };
+  }
+  if (field === TOTAL_COUNT_FIELD) {
+    return { scope: 'total', metric: 'count' };
+  }
+  if (field.startsWith(ENDPOINT_WEIGHT_PREFIX)) {
+    return { scope: 'endpoint', metric: 'weight', endpoint: field.slice(ENDPOINT_WEIGHT_PREFIX.length) };
+  }
+  if (field.startsWith(ENDPOINT_COUNT_PREFIX)) {
+    return { scope: 'endpoint', metric: 'count', endpoint: field.slice(ENDPOINT_COUNT_PREFIX.length) };
   }
   return null;
 };
@@ -71,31 +89,55 @@ async function processUsageKey({ client, redis, key }) {
   }
 
   const periodStart = monthStartFromKey(periodKey);
-  const updates = [];
+  const aggregates = new Map();
 
   for (const [field, value] of fields) {
-    const endpoint = normalizeEndpointField(field);
-    if (!endpoint) continue;
-    const count = parseCount(value);
-    if (count == null) continue;
-    updates.push({ endpoint, count });
+    const classification = classifyField(field);
+    if (!classification) continue;
+
+    const numeric = classification.metric === 'count' ? parseCount(value) : parseWeight(value);
+    if (numeric == null) continue;
+
+    const key = classification.scope === 'total' ? TOTAL_WEIGHT_FIELD : classification.endpoint;
+    if (!aggregates.has(key)) {
+      aggregates.set(key, { count: null, totalWeight: null });
+    }
+
+    const record = aggregates.get(key);
+    if (classification.metric === 'count') {
+      record.count = Math.max(0, Math.round(numeric));
+    } else {
+      record.totalWeight = Math.max(0, Math.round(numeric));
+    }
   }
 
-  if (!updates.length) {
+  if (!aggregates.size) {
     return { processed: true, upserts: 0 };
   }
 
   await client.query('BEGIN');
   try {
     let upserts = 0;
-    for (const update of updates) {
+    for (const [endpointKey, record] of aggregates.entries()) {
+      const endpoint = endpointKey === TOTAL_WEIGHT_FIELD ? TOTAL_WEIGHT_FIELD : endpointKey;
+      const countValue = Number.isFinite(record.count) ? record.count : 0;
+      const weightValue = Number.isFinite(record.totalWeight) ? record.totalWeight : 0;
+      const hasCount = Number.isFinite(record.count);
+      const hasWeight = Number.isFinite(record.totalWeight);
+
+      if (!hasCount && !hasWeight) {
+        continue;
+      }
+
       await client.query(
-        `INSERT INTO usage_counters (tenant_id, endpoint, period_start, call_count, last_updated_at)
-         VALUES ($1, $2, $3, $4, NOW())
+        `INSERT INTO usage_counters (tenant_id, endpoint, period_start, count, total_weight)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (tenant_id, endpoint, period_start)
-         DO UPDATE SET call_count = GREATEST(usage_counters.call_count, EXCLUDED.call_count),
-                       last_updated_at = NOW()`,
-        [tenantId, update.endpoint, periodStart, update.count],
+         DO UPDATE SET count = CASE WHEN $6 THEN GREATEST(usage_counters.count, EXCLUDED.count)
+                                    ELSE usage_counters.count END,
+                       total_weight = CASE WHEN $7 THEN GREATEST(usage_counters.total_weight, EXCLUDED.total_weight)
+                                           ELSE usage_counters.total_weight END`,
+        [tenantId, endpoint, periodStart, countValue, weightValue, hasCount, hasWeight],
       );
       upserts += 1;
     }

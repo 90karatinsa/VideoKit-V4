@@ -85,13 +85,17 @@ describe('billing unit helpers', () => {
     const period = '2024-01';
 
     const first = await incrementUsageAtomic('tenant-a', '/write', 2, period, { limit: 10 });
-    expect(first).toEqual({ allowed: true, total: 2, endpointUsage: 2 });
+    expect(first).toEqual(
+      expect.objectContaining({ allowed: true, total: 2, endpointUsage: 2, totalCount: 1, endpointCount: 1 }),
+    );
 
     const second = await incrementUsageAtomic('tenant-a', '/write', 1, period, { limit: 10 });
-    expect(second).toEqual({ allowed: true, total: 3, endpointUsage: 3 });
+    expect(second).toEqual(
+      expect.objectContaining({ allowed: true, total: 3, endpointUsage: 3, totalCount: 2, endpointCount: 2 }),
+    );
 
     expect(db.getTotalUsage('tenant-a')).toBe(3);
-    expect(db.getUsage('tenant-a', '/write')).toBe(3);
+    expect(db.getUsage('tenant-a', '/write')).toBe(2);
   });
 
   test('incrementUsageAtomic enforces limits before incrementing', async () => {

@@ -13893,3 +13893,471 @@ _No files provided for this section._
 | reports/monitoring/oncall.md | 4401 | 0840b830f433bbaadfbe1f37b727effa1b5e1f5a6a35eb7b63b5f36de928bbf6 |
 | reports/scripts/run-billing-basic.mjs | 3211 | d241440efe5c9e2e61e880156c3502332738434671ec051d7c27688d568b56b4 |
 | **Total** | **531224** |  |
+### Hotfix Pack #1 (DB/Jobs/Weight)
+
+```
+diff --git a/migrations/1769300004000_create_api_events_rollups.cjs b/migrations/1769300004000_create_api_events_rollups.cjs
+new file mode 100644
+index 0000000..b5f0fef
+--- /dev/null
++++ b/migrations/1769300004000_create_api_events_rollups.cjs
+@@
++exports.up = (pgm) => {
++  pgm.createTable(
++    'api_events_rollup_hourly',
++    {
++      bucket_ts: { type: 'timestamptz', notNull: true },
++      tenant_id: { type: 'text', notNull: true },
++      endpoint: { type: 'text', notNull: true },
++      calls: { type: 'bigint', notNull: true, default: 0 },
++      success: { type: 'bigint', notNull: true, default: 0 },
++      errors4xx: { type: 'bigint', notNull: true, default: 0 },
++      errors5xx: { type: 'bigint', notNull: true, default: 0 },
++      avg_ms: { type: 'integer' },
++      p95_ms: { type: 'integer' },
++      created_at: { type: 'timestamptz', notNull: true, default: pgm.func('now()') },
++      updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('now()') },
++    },
++    { ifNotExists: true },
++  );
++
++  pgm.addConstraint('api_events_rollup_hourly', 'api_events_rollup_hourly_pkey', {
++    primaryKey: ['bucket_ts', 'tenant_id', 'endpoint'],
++  });
++
++  pgm.createIndex('api_events_rollup_hourly', ['tenant_id', { name: 'bucket_ts', sort: 'DESC' }], {
++    ifNotExists: true,
++    name: 'api_events_rollup_hourly_tenant_bucket_idx',
++  });
++  pgm.createIndex('api_events_rollup_hourly', ['bucket_ts'], {
++    ifNotExists: true,
++    name: 'api_events_rollup_hourly_bucket_idx',
++  });
++
++  pgm.createTable(
++    'api_events_rollup_daily',
++    {
++      bucket_ts: { type: 'timestamptz', notNull: true },
++      tenant_id: { type: 'text', notNull: true },
++      endpoint: { type: 'text', notNull: true },
++      calls: { type: 'bigint', notNull: true, default: 0 },
++      success: { type: 'bigint', notNull: true, default: 0 },
++      errors4xx: { type: 'bigint', notNull: true, default: 0 },
++      errors5xx: { type: 'bigint', notNull: true, default: 0 },
++      avg_ms: { type: 'integer' },
++      p95_ms: { type: 'integer' },
++      created_at: { type: 'timestamptz', notNull: true, default: pgm.func('now()') },
++      updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('now()') },
++    },
++    { ifNotExists: true },
++  );
++
++  pgm.addConstraint('api_events_rollup_daily', 'api_events_rollup_daily_pkey', {
++    primaryKey: ['bucket_ts', 'tenant_id', 'endpoint'],
++  });
++
++  pgm.createIndex('api_events_rollup_daily', ['tenant_id', { name: 'bucket_ts', sort: 'DESC' }], {
++    ifNotExists: true,
++    name: 'api_events_rollup_daily_tenant_bucket_idx',
++  });
++  pgm.createIndex('api_events_rollup_daily', ['bucket_ts'], {
++    ifNotExists: true,
++    name: 'api_events_rollup_daily_bucket_idx',
++  });
++};
++
++exports.down = (pgm) => {
++  pgm.dropTable('api_events_rollup_daily', { ifExists: true, cascade: true });
++  pgm.dropTable('api_events_rollup_hourly', { ifExists: true, cascade: true });
++};
+```
+
+```
+diff --git a/jobs/rollup-analytics.mjs b/jobs/rollup-analytics.mjs
+index 1a1c2ef..7d4c84f 100644
+--- a/jobs/rollup-analytics.mjs
++++ b/jobs/rollup-analytics.mjs
+@@
+-async function rollupHourly(client) {
++const quoteIdent = (identifier) => {
++  if (!/^[a-z_][a-z0-9_]*$/i.test(identifier)) {
++    throw new Error(`Invalid identifier: ${identifier}`);
++  }
++  return `"${identifier}"`;
++};
++
++const buildDurationClause = ({ metadataColumn, durationColumn }) => {
++  if (metadataColumn) {
++    const metadataIdent = quoteIdent(metadataColumn);
++    return `(
++      CASE
++        WHEN ${metadataIdent} ? 'duration_ms' AND ${metadataIdent}->>'duration_ms' ~ '^\\\d+(?:\\.\\d+)?$'
++        THEN (${metadataIdent}->>'duration_ms')::numeric
++        ELSE NULL
++      END
++    )`;
++  }
++  if (durationColumn) {
++    const durationIdent = quoteIdent(durationColumn);
++    return `${durationIdent}::numeric`;
++  }
++  return 'NULL';
++};
++
++async function resolveEventSchema(client) {
++  const { rows } = await client.query(
++    `SELECT column_name FROM information_schema.columns WHERE table_name = 'api_events'`,
++  );
++  const columns = new Set(rows.map((row) => row.column_name));
++
++  const timestampColumn = columns.has('occurred_at') ? 'occurred_at' : columns.has('ts') ? 'ts' : null;
++  if (!timestampColumn) {
++    throw new Error('api_events table is missing occurred_at/ts timestamp columns required for rollups.');
++  }
++
++  const endpointColumn = columns.has('endpoint') ? 'endpoint' : columns.has('endpoint_norm') ? 'endpoint_norm' : null;
++  if (!endpointColumn) {
++    throw new Error('api_events table is missing endpoint or endpoint_norm columns required for rollups.');
++  }
++
++  const statusColumn = columns.has('status_code') ? 'status_code' : columns.has('status') ? 'status' : null;
++  if (!statusColumn) {
++    throw new Error('api_events table is missing status/status_code columns required for rollups.');
++  }
++
++  const metadataColumn = columns.has('metadata') ? 'metadata' : null;
++  const durationColumn = columns.has('duration_ms') ? 'duration_ms' : null;
++
++  const durationClause = buildDurationClause({ metadataColumn, durationColumn });
++
++  return {
++    timestampIdent: quoteIdent(timestampColumn),
++    endpointSelect: `${quoteIdent(endpointColumn)} AS endpoint`,
++    endpointGroup: quoteIdent(endpointColumn),
++    statusIdent: quoteIdent(statusColumn),
++    durationClause,
++  };
++}
++
++async function rollupHourly(client, schema) {
+@@
+-        date_trunc('hour', occurred_at) AS bucket,
+-        tenant_id,
+-        endpoint,
+-        COUNT(*)::bigint AS total_count,
+-        COUNT(*) FILTER (WHERE status_code BETWEEN 200 AND 299)::bigint AS success_count,
+-        COUNT(*) FILTER (WHERE status_code BETWEEN 400 AND 499)::bigint AS error_4xx_count,
+-        COUNT(*) FILTER (WHERE status_code BETWEEN 500 AND 599)::bigint AS error_5xx_count,
+-        AVG(${numericDurationClause}) AS avg_duration_ms,
+-        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ${numericDurationClause})
+-          FILTER (WHERE ${numericDurationClause} IS NOT NULL) AS p95_duration_ms
++        date_trunc('hour', ${schema.timestampIdent}) AS bucket,
++        tenant_id,
++        ${schema.endpointSelect},
++        COUNT(*)::bigint AS calls,
++        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 200 AND 299)::bigint AS success,
++        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 400 AND 499)::bigint AS errors4xx,
++        COUNT(*) FILTER (WHERE ${schema.statusIdent} BETWEEN 500 AND 599)::bigint AS errors5xx,
++        AVG(${schema.durationClause}) AS avg_duration_ms,
++        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ${schema.durationClause})
++          FILTER (WHERE ${schema.durationClause} IS NOT NULL) AS p95_duration_ms
+       FROM api_events
+-      WHERE occurred_at >= $1::timestamptz
+-        AND occurred_at < $2::timestamptz
+-      GROUP BY bucket, tenant_id, endpoint
++      WHERE ${schema.timestampIdent} >= $1::timestamptz
++        AND ${schema.timestampIdent} < $2::timestamptz
++      GROUP BY bucket, tenant_id, ${schema.endpointGroup}
+       ORDER BY bucket, tenant_id, endpoint`,
+```
+
+```
+diff --git a/jobs/flush-usage.mjs b/jobs/flush-usage.mjs
+index 8c77b31..5f85194 100644
+--- a/jobs/flush-usage.mjs
++++ b/jobs/flush-usage.mjs
+@@
+-const TOTAL_FIELD = '__total__';
+-const ENDPOINT_PREFIX = 'op:';
++const TOTAL_WEIGHT_FIELD = '__total__';
++const TOTAL_COUNT_FIELD = '__total_count__';
++const ENDPOINT_WEIGHT_PREFIX = 'op:';
++const ENDPOINT_COUNT_PREFIX = 'op_count:';
+@@
+-const normalizeEndpointField = (field) => {
+-  if (field === TOTAL_FIELD) return TOTAL_FIELD;
+-  if (field.startsWith(ENDPOINT_PREFIX)) {
+-    return field.slice(ENDPOINT_PREFIX.length);
+-  }
+-  return null;
+-};
++const classifyField = (field) => {
++  if (field === TOTAL_WEIGHT_FIELD) {
++    return { scope: 'total', metric: 'weight' };
++  }
++  if (field === TOTAL_COUNT_FIELD) {
++    return { scope: 'total', metric: 'count' };
++  }
++  if (field.startsWith(ENDPOINT_WEIGHT_PREFIX)) {
++    return { scope: 'endpoint', metric: 'weight', endpoint: field.slice(ENDPOINT_WEIGHT_PREFIX.length) };
++  }
++  if (field.startsWith(ENDPOINT_COUNT_PREFIX)) {
++    return { scope: 'endpoint', metric: 'count', endpoint: field.slice(ENDPOINT_COUNT_PREFIX.length) };
++  }
++  return null;
++};
+@@
+-  const updates = [];
++  const aggregates = new Map();
+@@
+-  for (const [field, value] of fields) {
+-    const endpoint = normalizeEndpointField(field);
+-    if (!endpoint) continue;
+-    const count = parseCount(value);
+-    if (count == null) continue;
+-    updates.push({ endpoint, count });
++  for (const [field, value] of fields) {
++    const classification = classifyField(field);
++    if (!classification) continue;
++
++    const numeric = classification.metric === 'count' ? parseCount(value) : parseWeight(value);
++    if (numeric == null) continue;
++
++    const key = classification.scope === 'total' ? TOTAL_WEIGHT_FIELD : classification.endpoint;
++    if (!aggregates.has(key)) {
++      aggregates.set(key, { count: null, totalWeight: null });
++    }
++
++    const record = aggregates.get(key);
++    if (classification.metric === 'count') {
++      record.count = Math.max(0, Math.round(numeric));
++    } else {
++      record.totalWeight = Math.max(0, Math.round(numeric));
++    }
+   }
+@@
+-    for (const update of updates) {
++    for (const [endpointKey, record] of aggregates.entries()) {
++      const endpoint = endpointKey === TOTAL_WEIGHT_FIELD ? TOTAL_WEIGHT_FIELD : endpointKey;
++      const countValue = Number.isFinite(record.count) ? record.count : 0;
++      const weightValue = Number.isFinite(record.totalWeight) ? record.totalWeight : 0;
++      const hasCount = Number.isFinite(record.count);
++      const hasWeight = Number.isFinite(record.totalWeight);
++
++      if (!hasCount && !hasWeight) {
++        continue;
++      }
+ 
+       await client.query(
+-        `INSERT INTO usage_counters (tenant_id, endpoint, period_start, call_count, last_updated_at)
+-         VALUES ($1, $2, $3, $4, NOW())
+-         ON CONFLICT (tenant_id, endpoint, period_start)
+-         DO UPDATE SET call_count = GREATEST(usage_counters.call_count, EXCLUDED.call_count),
+-                       last_updated_at = NOW()`,
+-        [tenantId, update.endpoint, periodStart, update.count],
++        `INSERT INTO usage_counters (tenant_id, endpoint, period_start, count, total_weight)
++         VALUES ($1, $2, $3, $4, $5)
++         ON CONFLICT (tenant_id, endpoint, period_start)
++         DO UPDATE SET count = CASE WHEN $6 THEN GREATEST(usage_counters.count, EXCLUDED.count)
++                                    ELSE usage_counters.count END,
++                       total_weight = CASE WHEN $7 THEN GREATEST(usage_counters.total_weight, EXCLUDED.total_weight)
++                                           ELSE usage_counters.total_weight END`,
++        [tenantId, endpoint, periodStart, countValue, weightValue, hasCount, hasWeight],
+       );
+```
+
+```
+diff --git a/middleware/billing.js b/middleware/billing.js
+index 1f9aa07..5f0669f 100644
+--- a/middleware/billing.js
++++ b/middleware/billing.js
+@@
+-const TOTAL_FIELD = '__total__';
++const TOTAL_WEIGHT_FIELD = '__total__';
++const TOTAL_COUNT_FIELD = '__total_count__';
++const ENDPOINT_WEIGHT_PREFIX = 'op:';
++const ENDPOINT_COUNT_PREFIX = 'op_count:';
+@@
+-const REDIS_INCREMENT_LUA = `
++const REDIS_INCREMENT_LUA = `
+ local key = KEYS[1]
+ local ttl = tonumber(ARGV[1])
+-local totalField = ARGV[2]
+-local opField = ARGV[3]
+-local increment = tonumber(ARGV[4])
+-local limit = tonumber(ARGV[5])
++local totalWeightField = ARGV[2]
++local totalCountField = ARGV[3]
++local endpointWeightField = ARGV[4]
++local endpointCountField = ARGV[5]
++local weightIncrement = tonumber(ARGV[6])
++local limit = tonumber(ARGV[7])
+@@
+-if limit >= 0 then
+-  local current = tonumber(redis.call('HGET', key, totalField) or '0')
+-  if current + increment > limit then
+-    local opValue = tonumber(redis.call('HGET', key, opField) or '0')
+-    return {0, current, opValue}
++if limit >= 0 then
++  local currentWeight = tonumber(redis.call('HGET', key, totalWeightField) or '0')
++  if currentWeight + weightIncrement > limit then
++    local endpointWeight = tonumber(redis.call('HGET', key, endpointWeightField) or '0')
++    local currentCount = tonumber(redis.call('HGET', key, totalCountField) or '0')
++    local endpointCount = tonumber(redis.call('HGET', key, endpointCountField) or '0')
++    return {0, currentWeight, endpointWeight, currentCount, endpointCount}
+   end
+ end
+ 
+-local newTotal = redis.call('HINCRBYFLOAT', key, totalField, increment)
+-local newOp = redis.call('HINCRBYFLOAT', key, opField, increment)
++local newTotalWeight = redis.call('HINCRBYFLOAT', key, totalWeightField, weightIncrement)
++local newEndpointWeight = redis.call('HINCRBYFLOAT', key, endpointWeightField, weightIncrement)
++local newTotalCount = redis.call('HINCRBY', key, totalCountField, 1)
++local newEndpointCount = redis.call('HINCRBY', key, endpointCountField, 1)
+@@
+-return {1, newTotal, newOp}
++return {1, newTotalWeight, newEndpointWeight, newTotalCount, newEndpointCount}
+ `;
+@@
+-const endpointField = (endpoint) => `op:${endpoint.replace(/\s+/g, '_')}`;
++const endpointKey = (endpoint) => endpoint.replace(/\s+/g, '_');
++const endpointWeightField = (endpoint) => `${ENDPOINT_WEIGHT_PREFIX}${endpointKey(endpoint)}`;
++const endpointCountField = (endpoint) => `${ENDPOINT_COUNT_PREFIX}${endpointKey(endpoint)}`;
+@@
+-        TOTAL_FIELD,
+-        endpointField(endpoint),
+-        weight,
+-        limit ?? -1,
++        TOTAL_WEIGHT_FIELD,
++        TOTAL_COUNT_FIELD,
++        weightField,
++        countField,
++        weight,
++        limit ?? -1,
+       );
+ 
+-      return {
+-        allowed: result[0] === 1,
+-        total: Number(result[1] ?? 0),
+-        endpointUsage: Number(result[2] ?? 0),
+-      };
++      const [allowedFlag, totalWeight, endpointWeight, totalCount, endpointCount] = Array.isArray(result)
++        ? result
++        : [0, 0, 0, 0, 0];
++
++      return {
++        allowed: allowedFlag === 1,
++        total: Number(totalWeight ?? 0),
++        endpointUsage: Number(endpointWeight ?? 0),
++        totalCount: Number(totalCount ?? 0),
++        endpointCount: Number(endpointCount ?? 0),
++      };
+@@
+-      'SELECT call_count FROM usage_counters WHERE tenant_id = $1 AND endpoint = $2 AND period_start = $3 FOR UPDATE',
+-      [tenantId, TOTAL_FIELD, periodStart],
++      'SELECT count, total_weight FROM usage_counters WHERE tenant_id = $1 AND endpoint = $2 AND period_start = $3 FOR UPDATE',
++      [tenantId, TOTAL_WEIGHT_FIELD, periodStart],
+@@
+-    const currentTotal = Number(current.rows[0]?.call_count ?? 0);
+-    if (limit != null && currentTotal + weight > limit) {
++    const currentTotalWeight = Number(current.rows[0]?.total_weight ?? 0);
++    const currentTotalCount = Number(current.rows[0]?.count ?? 0);
++    if (limit != null && currentTotalWeight + weight > limit) {
+@@
+-      `INSERT INTO usage_counters (tenant_id, endpoint, period_start, call_count)
+-       VALUES ($1, $2, $3, $4)
+-       ON CONFLICT (tenant_id, endpoint, period_start)
+-       DO UPDATE SET call_count = usage_counters.call_count + EXCLUDED.call_count, last_updated_at = NOW()
+-       RETURNING call_count`,
+-      [tenantId, TOTAL_FIELD, periodStart, weight],
++      `INSERT INTO usage_counters (tenant_id, endpoint, period_start, count, total_weight)
++       VALUES ($1, $2, $3, $4, $5)
++       ON CONFLICT (tenant_id, endpoint, period_start)
++       DO UPDATE SET count = usage_counters.count + EXCLUDED.count,
++                     total_weight = usage_counters.total_weight + EXCLUDED.total_weight
++       RETURNING count, total_weight`,
++      [tenantId, TOTAL_WEIGHT_FIELD, periodStart, 1, weight],
+@@
+-      `INSERT INTO usage_counters (tenant_id, endpoint, period_start, call_count)
+-       VALUES ($1, $2, $3, $4)
+-       ON CONFLICT (tenant_id, endpoint, period_start)
+-       DO UPDATE SET call_count = usage_counters.call_count + EXCLUDED.call_count, last_updated_at = NOW()
+-       RETURNING call_count`,
+-      [tenantId, endpoint, periodStart, weight],
++      `INSERT INTO usage_counters (tenant_id, endpoint, period_start, count, total_weight)
++       VALUES ($1, $2, $3, $4, $5)
++       ON CONFLICT (tenant_id, endpoint, period_start)
++       DO UPDATE SET count = usage_counters.count + EXCLUDED.count,
++                     total_weight = usage_counters.total_weight + EXCLUDED.total_weight
++       RETURNING count, total_weight`,
++      [tenantId, endpoint, periodStart, 1, weight],
+@@
+-      total: Number(total.rows[0]?.call_count ?? 0),
+-      endpointUsage: Number(endpointResult.rows[0]?.call_count ?? 0),
++      total: Number(total.rows[0]?.total_weight ?? 0),
++      endpointUsage: Number(endpointResult.rows[0]?.total_weight ?? 0),
++      totalCount: Number(total.rows[0]?.count ?? 0),
++      endpointCount: Number(endpointResult.rows[0]?.count ?? 0),
+     };
+```
+
+**Migrations (fresh database) — up/down/up cycle**
+
+```bash
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/videokit_hotfix npm run migrate:up
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/videokit_hotfix npm run migrate:down -- --to 0
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/videokit_hotfix npm run migrate:down -- --to 0
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/videokit_hotfix npm run migrate:up
+# logs: 0d0a13, e9e667, 43e978, 87f78d
+```
+
+**Weight accounting verification (Postgres fallback)**
+
+```bash
+node - <<'NODE'
+  ... incrementUsageAtomic ...
+NODE
+# redis fallback warning expected; confirms count=1 & total_weight=2
+# log: aaaefe
+
+psql postgres://postgres:postgres@localhost:5432/videokit_hotfix -c "SELECT endpoint, count, total_weight FROM usage_counters ORDER BY endpoint"
+# log: 5874ab
+```
+
+**Analytics rollup job**
+
+```bash
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/videokit_hotfix \
+REDIS_URL=redis://localhost:6379 \
+DEFAULT_PLAN_LIMIT=1000 \
+BILLING_ENFORCEMENT=true \
+ANALYTICS_LOGGING=false \
+STORAGE_TTL_DAYS=30 \
+npm run job:rollup-analytics
+# log: d66ef0
+```
+
+**Redis flush job and persistence check**
+
+```bash
+redis-cli HSET usage:tenant-hotfix:2025-09 __total__ 2 __total_count__ 1 op:/verify 2 op_count:/verify 1
+
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/videikit_hotfix \
+REDIS_URL=redis://127.0.0.1:6379 \
+DEFAULT_PLAN_LIMIT=1000 \
+BILLING_ENFORCEMENT=true \
+ANALYTICS_LOGGING=false \
+STORAGE_TTL_DAYS=30 \
+npm run job:flush-usage
+# log: 0259b3
+
+psql postgres://postgres:postgres@localhost:5432/videikit_hotfix -c "SELECT endpoint, count, total_weight FROM usage_counters ORDER BY endpoint"
+# log: 5874ab
+```
+
+**Unit regression**
+
+```bash
+npm test -- --runTestsByPath __tests__/billing.unit.test.mjs
+# log: 4d709f
+```
