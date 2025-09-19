@@ -1,0 +1,59 @@
+# Alertmanager rules for VideoKit production workloads.
+# Each rule includes PromQL expressions along with annotations explaining
+# the chosen threshold and evaluation window.
+groups:
+  - name: videokit-api-latency-and-errors
+    rules:
+      - alert: VideokitHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(http_request_duration_seconds_bucket{app="videokit-api", route!="/healthz"}[5m])
+            )
+          ) > 0.850
+        for: 10m
+        labels:
+          severity: page
+          team: api
+        annotations:
+          summary: "p95 latency is elevated for videokit-api"
+          description: |
+            The rolling 5m p95 latency for production endpoints exceeded 850ms
+            for at least 10m. The 5m range is long enough to smooth out single
+            spikes, while the 10m `for` clause prevents paging on brief deploy
+            warmups.
+          runbook: https://runbooks.videokit.example.com/api-latency
+
+      - alert: VideokitHttp5xxRate
+        expr: |
+          sum by (app) (
+            rate(http_requests_total{app="videokit-api", status=~"5.."}[5m])
+          ) > 1
+        for: 5m
+        labels:
+          severity: page
+          team: api
+        annotations:
+          summary: "videokit-api is returning 5xx errors above baseline"
+          description: |
+            The overall 5xx rate surpassed 1 req/s for 5m. This threshold is ~3x
+            higher than normal steady state and the shorter `for` keeps the team
+            responsive to user-facing outages.
+          runbook: https://runbooks.videokit.example.com/api-5xx
+
+      - alert: VideokitQuotaBlockIncrease
+        expr: |
+          increase(quota_block_total{app="videokit-api"}[15m]) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          team: api
+        annotations:
+          summary: "Quota blocks are increasing in videokit-api"
+          description: |
+            quota_block_total increased over the last 15m. The 15m window allows
+            us to capture real quota regressions while ignoring single retries;
+            ticket severity is appropriate because the impact is degraded usage
+            rather than a full outage.
+          runbook: https://runbooks.videokit.example.com/quota-blocks
