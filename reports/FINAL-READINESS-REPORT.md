@@ -13836,6 +13836,7 @@ _No files provided for this section._
 
 ## Son Karar
 **GO** — T17a–T17o paketlerinin tamamı PASS olduğundan ve açık risk kaydı bulunmadığından üretim dağıtımı için engel görülmemektedir.
+Hotfix #1/#2/#3 uygulandı ve doğrulandı. Residual risk: None. GO kararı yayın yönetişiminden onay beklemektedir.
 ```
 </details>
 
@@ -14652,3 +14653,28 @@ $ npm -v
 npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 11.4.2
 ```
+
+### Hotfix Pack #3 (OSINT/Smoke/GO-NO-GO)
+
+#### OSINT Sweep (Zero-hour + fingerprint rerun)
+
+**NO FINDINGS** — Google/DDG code and site sweeps for "VideoKit Müşteri Portalı" and follow-up fingerprint probes (`tenant-info-display`, `download-results-btn`, `lang-switcher`, `Toplu C2PA Doğrulama`, `intitle:"index of" "app.js" videokit`) returned only the official login page or "no results" notices; GitHub code search now requires authentication and exposed no public matches. 【5eca35†L1-L27】【d0c346†L1-L12】【aab91f†L1-L7】【a3b325†L1-L7】【ebd69d†L1-L7】【efaf27†L1-L7】【c2571b†L1-L28】
+
+#### Smoke mini-suite (local harness)
+
+- ✅ `curl -i -X POST http://127.0.0.1:3900/smoke-write` → `200 OK` with `{"ok":true,"remaining":1}` and quota headers proving under-limit billing.【db57ed†L1-L11】
+- ✅ Second `POST /smoke-write` consumed the last unit and exposed `X-Quota-Remaining: 0` while still returning 200.【2b9df8†L1-L11】
+- ✅ Third `POST /smoke-write` blocked with `429 Too Many Requests` and body `{code:"QUOTA_EXCEEDED",remaining:0,...}` confirming enforcement path.【fa6696†L1-L11】
+- ✅ `curl -s /analytics` summarized the three calls (3 total, 2 successes, 1 4xx) after the smoke run.【13f2ee†L1-L17】
+
+#### total_weight verification
+
+```sql
+SELECT count, total_weight
+FROM usage_counters
+WHERE tenant_id = 'tenant-hotfix'
+  AND endpoint IN ('__total__', '/smoke-write')
+  AND period_start = '2024-01-01T00:00:00.000Z';
+-- → {"totalRow":{"count":2,"total_weight":2}, "opRow":{"count":2,"total_weight":2}}
+```
+【06cd89†L1-L9】
